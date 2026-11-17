@@ -7,11 +7,17 @@ o Bruno aprovar no painel e postar (YouTube Shorts, TikTok, Reels).
 O que importa: **velocidade** (corte sai com a live rolando) e **dopamina** (começa no pico, sem tempo morto).
 O README tem as instruções para o Bruno; este arquivo explica como o código funciona.
 
+Contexto de negócio, regras de conteúdo e histórico das decisões (leia também):
+@docs/CONTEXTO.md
+
+**Mantenha os dois arquivos atualizados**: ao terminar uma tarefa que muda status, decisões ou
+pendências, atualize a seção "Status" daqui e o docs/CONTEXTO.md no mesmo commit.
+
 ## Status (17/11/2026)
 
 Implementado e testado com vídeo sintético + live simulada:
 gravador, chat Twitch/YouTube, detector, backtest, IA (opcional), render 9:16 com legenda,
-remoção de silêncio, painel. **Ainda não testado com live/VOD real nem com Whisper real**
+remoção de silêncio, painel, escritório (/escritorio). **Ainda não testado com live/VOD real nem com Whisper real**
 (o ambiente onde foi escrito não tinha acesso à Twitch nem ao HuggingFace).
 
 Próximos passos:
