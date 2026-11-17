@@ -39,8 +39,10 @@ def main():
     cmd = ["yt-dlp", "-f", "bv*[height<=1080]+ba/b[height<=1080]/b",
            "--merge-output-format", "mp4", "-o", str(video), args.url]
     if args.inicio or args.fim:
-        cmd += ["--download-sections", f"*{args.inicio or '0'}-{args.fim or 'inf'}",
-                "--force-keyframes-at-cuts"]
+        # Sem --force-keyframes-at-cuts: ele recodifica o vídeo e baixa na velocidade da live
+        # (20 min levavam ~20 min). Sem ele copia direto (segundos); o começo pode cair até
+        # ~2s antes do --inicio (keyframe anterior), irrelevante para o backtest.
+        cmd += ["--download-sections", f"*{args.inicio or '0'}-{args.fim or 'inf'}"]
     print("Baixando vídeo...")
     subprocess.run(cmd, check=True)
 
