@@ -9,10 +9,11 @@ import time
 from pathlib import Path
 
 from fastapi import BackgroundTasks, FastAPI, Form, HTTPException
+from pydantic import BaseModel
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 from jinja2 import Environment
 
-from app import db, pipeline
+from app import db, metricas, pipeline
 from app.config import cfg, dirs, streamer
 
 app = FastAPI(title="Cortes GTA 6")
@@ -52,7 +53,7 @@ PAGINA = Environment(autoescape=True).from_string("""<!doctype html>
  #novos{display:none;position:fixed;bottom:16px;left:50%;transform:translateX(-50%);background:var(--ac);color:#000;padding:10px 18px;border-radius:99px;font-weight:700;cursor:pointer}
 </style></head><body>
 <header>
- <h1>✂️ {{ nome_canal }}</h1>
+ <h1>✂️ {{ nome_canal }} <a href="/escritorio" style="float:right;font-size:13px;color:var(--ac);text-decoration:none">🏢 Escritório</a></h1>
  <div class="vivo">{% for s in status_streamers %}{% if s.vivo %}<b>● AO VIVO</b>{% else %}○{% endif %} {{ s.nome }} &nbsp; {% endfor %}</div>
  <nav>{% for k, (rot, _) in filtros.items() %}<a href="/?f={{k}}" class="{{ 'on' if k==f }}">{{ rot }} ({{ contagem[k] }})</a>{% endfor %}</nav>
 </header>
@@ -207,3 +208,44 @@ def resumo():
         ultimo = con.execute("SELECT coalesce(max(id),0) FROM candidatos "
                              "WHERE status='pronto'").fetchone()[0]
     return JSONResponse({"ultimo_pronto": ultimo})
+
+
+# ------------------------------------------------------------------ escritório
+ESCRITORIO = Path(__file__).with_name("escritorio.html")
+PLATS_OK = set(metricas.PLATAFORMAS)
+
+
+class NovaMetrica(BaseModel):
+    plataforma: str
+    seguidores: int | None = None
+    views: int | None = None
+    receita_mes: float | None = None
+
+
+@app.get("/escritorio", response_class=HTMLResponse)
+def escritorio():
+    return ESCRITORIO.read_text(encoding="utf-8")
+
+
+@app.get("/api/escritorio")
+def api_escritorio(bg: BackgroundTasks):
+    # YouTube automático: atualiza em segundo plano se a última foto tiver mais de 1h
+    if metricas.youtube_automatico():
+        u = metricas.ultimo("youtube")
+        if not u or u["fonte"] != "api" or time.time() - u["ts"] > 3600:
+            bg.add_task(metricas.atualizar_youtube)
+    return {
+        "nome_canal": cfg()["marca"]["nome_canal"],
+        "agentes": metricas.agentes(),
+        "plataformas": metricas.resumo_plataformas(),
+        "cortes_por_hora": metricas.cortes_por_hora(),
+        "hoje": metricas.hoje(),
+    }
+
+
+@app.post("/api/metricas")
+def api_metricas(m: NovaMetrica):
+    if m.plataforma not in PLATS_OK:
+        raise HTTPException(400, "plataforma inválida")
+    metricas.registrar(m.plataforma, m.seguidores, m.views, m.receita_mes)
+    return {"ok": True}

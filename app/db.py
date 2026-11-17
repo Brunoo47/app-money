@@ -47,6 +47,18 @@ CREATE TABLE IF NOT EXISTS estado (
     chave TEXT PRIMARY KEY,
     valor TEXT
 );
+
+-- Fotos dos números de cada plataforma ao longo do tempo (para mostrar a variação).
+CREATE TABLE IF NOT EXISTS metricas (
+    id INTEGER PRIMARY KEY,
+    plataforma TEXT NOT NULL,      -- youtube | tiktok | instagram
+    ts REAL NOT NULL,
+    seguidores INTEGER,
+    views INTEGER,
+    receita_mes REAL,              -- R$ no mês corrente
+    fonte TEXT NOT NULL DEFAULT 'manual'   -- manual | api
+);
+CREATE INDEX IF NOT EXISTS ix_met ON metricas(plataforma, ts);
 """
 
 

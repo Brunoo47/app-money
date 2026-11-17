@@ -1,0 +1,267 @@
+<!doctype html>
+<html lang="pt-br"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Escritório · Cortes</title>
+<style>
+ :root{--bg:#08090c;--card:#12141a;--borda:#23262f;--txt:#ecedf2;--mut:#8a8d99;--neon:#ffc800;--ok:#2fe07a;--no:#ff4d5a;
+   --yt:#ff3b3b;--tt:#25f4ee;--ig:#e1306c}
+ *{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--txt);font:14px/1.4 system-ui,-apple-system,"Segoe UI",sans-serif}
+ a{color:inherit}
+ .topo{display:flex;align-items:center;gap:14px;padding:14px 18px;border-bottom:1px solid var(--borda);flex-wrap:wrap}
+ .logo{display:flex;align-items:center;gap:10px;font-weight:800;letter-spacing:.5px}
+ .logo .marca{width:34px;height:34px;border-radius:9px;background:var(--neon);color:#000;display:grid;place-items:center;font-size:18px;box-shadow:0 0 18px #ffc80066}
+ .logo small{display:block;font-weight:500;color:var(--mut);font-size:11px;letter-spacing:1px;text-transform:uppercase}
+ .abas{margin-left:auto;display:flex;gap:6px}
+ .abas a{padding:7px 12px;border-radius:9px;border:1px solid var(--borda);text-decoration:none;font-size:13px}
+ .abas a.on{border-color:var(--neon);color:var(--neon);box-shadow:inset 0 0 12px #ffc80022}
+ .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;padding:14px 18px 0}
+ .kpi{background:var(--card);border:1px solid var(--borda);border-radius:14px;padding:12px 14px}
+ .kpi .rot{color:var(--mut);font-size:11px;text-transform:uppercase;letter-spacing:1px}
+ .kpi .val{font-size:26px;font-weight:800;margin-top:2px}
+ .kpi .val.dinheiro{color:var(--ok);text-shadow:0 0 14px #2fe07a55}
+ .kpi .sub{color:var(--mut);font-size:12px}
+ .cena{position:relative;margin:12px 18px;border:1px solid var(--borda);border-radius:18px;overflow-x:auto;overflow-y:hidden;
+   background:radial-gradient(ellipse at 50% 40%,#16181f 0%,#08090c 70%)}
+ .cena .cab{position:absolute;left:16px;top:12px;font-size:12px;color:var(--mut);z-index:2}
+ .cena .cab b{color:var(--txt);font-size:13px;letter-spacing:1px;text-transform:uppercase}
+ svg{display:block;width:100%;min-width:720px;height:auto}
+ @media(max-width:600px){.cena{margin:12px 10px}.kpis,.plats{padding-left:10px;padding-right:10px}.kpis{grid-template-columns:1fr 1fr}.kpi .val{font-size:20px}}
+ .plats{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px;padding:0 18px 18px}
+ .plat{background:var(--card);border:1px solid var(--borda);border-radius:14px;padding:14px;position:relative;overflow:hidden}
+ .plat::before{content:"";position:absolute;inset:0 0 auto 0;height:3px;background:var(--cor)}
+ .plat h3{margin:0 0 10px;font-size:14px;display:flex;align-items:center;gap:8px}
+ .plat h3 .tag{font-size:10px;font-weight:600;padding:2px 6px;border-radius:5px;background:#ffffff12;color:var(--mut)}
+ .plat h3 button{margin-left:auto;background:#ffffff10;border:1px solid var(--borda);color:var(--txt);border-radius:7px;padding:4px 9px;cursor:pointer;font-size:12px}
+ .linha{display:flex;justify-content:space-between;padding:5px 0;border-top:1px solid #ffffff08}
+ .linha span:first-child{color:var(--mut)} .linha b{font-variant-numeric:tabular-nums}
+ .up{color:var(--ok);font-size:11px;margin-left:6px} .down{color:var(--no);font-size:11px;margin-left:6px}
+ .rodape{color:var(--mut);font-size:11px;margin-top:6px}
+ dialog{background:var(--card);color:var(--txt);border:1px solid var(--borda);border-radius:14px;padding:18px;width:min(360px,92vw)}
+ dialog::backdrop{background:#000a}
+ dialog label{display:block;font-size:12px;color:var(--mut);margin-top:10px}
+ dialog input{width:100%;padding:9px;border-radius:8px;border:1px solid var(--borda);background:#0b0c10;color:var(--txt);font:inherit}
+ dialog .bts{display:flex;gap:8px;margin-top:16px} dialog button{flex:1;padding:10px;border-radius:9px;border:0;font-weight:700;cursor:pointer}
+ .salvar{background:var(--neon);color:#000} .cancelar{background:#ffffff12;color:var(--txt)}
+ /* animações da cena */
+ @keyframes digita{0%,100%{transform:translateY(0)}50%{transform:translateY(-1.6px)}}
+ @keyframes brilho{0%,100%{opacity:.75}50%{opacity:1}}
+ @keyframes zzz{0%{opacity:0;transform:translate(0,0)}30%{opacity:1}100%{opacity:0;transform:translate(8px,-18px)}}
+ @keyframes pulso{0%,100%{opacity:1}50%{opacity:.35}}
+ .trab .corpo{animation:digita .45s ease-in-out infinite}
+ .trab .tela{animation:brilho 1.6s ease-in-out infinite}
+ .z{animation:zzz 2.4s ease-out infinite;font-weight:800;fill:#8a8d99}
+ .vivo{animation:pulso 1s ease-in-out infinite}
+</style></head><body>
+
+<div class="topo">
+  <div class="logo"><div class="marca">✂</div><div><span id="nomeCanal">Cortes</span><small>Escritório · ao vivo</small></div></div>
+  <div class="abas"><a href="/escritorio" class="on">🏢 Escritório</a><a href="/">✂️ Cortes</a></div>
+</div>
+
+<div class="kpis">
+  <div class="kpi"><div class="rot">Receita do mês</div><div class="val dinheiro" id="kReceita">R$ 0,00</div><div class="sub">somando as plataformas</div></div>
+  <div class="kpi"><div class="rot">Seguidores</div><div class="val" id="kSeg">0</div><div class="sub" id="kSegD">—</div></div>
+  <div class="kpi"><div class="rot">Visualizações</div><div class="val" id="kViews">0</div><div class="sub" id="kViewsD">—</div></div>
+  <div class="kpi"><div class="rot">Cortes hoje</div><div class="val" id="kCortes">0</div><div class="sub" id="kCortesS">—</div></div>
+</div>
+
+<div class="cena">
+  <div class="cab"><b>Meu escritório</b> · <span id="emOperacao">—</span></div>
+  <svg id="svg" viewBox="-330 -175 780 590" aria-label="Escritório com os agentes do sistema"></svg>
+</div>
+
+<div class="plats" id="plats"></div>
+
+<dialog id="dlg"><form method="dialog" id="frm">
+  <h3 id="dlgTit" style="margin:0">Atualizar</h3>
+  <input type="hidden" name="plataforma">
+  <label>Seguidores <input name="seguidores" inputmode="numeric" placeholder="ex.: 1520"></label>
+  <label>Visualizações totais <input name="views" inputmode="numeric" placeholder="ex.: 250000"></label>
+  <label>Receita do mês (R$) <input name="receita_mes" inputmode="decimal" placeholder="ex.: 120,50"></label>
+  <div class="bts"><button value="cancel" class="cancelar">Cancelar</button><button value="ok" class="salvar">Salvar</button></div>
+</form></dialog>
+
+<script>
+// ------------------------------------------------------------ formatação
+const BRL = v => (v ?? 0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
+const NUM = v => v == null ? '—' : v >= 1e6 ? (v/1e6).toLocaleString('pt-BR',{maximumFractionDigits:1})+' mi'
+  : v >= 1e4 ? (v/1e3).toLocaleString('pt-BR',{maximumFractionDigits:1})+' mil' : v.toLocaleString('pt-BR');
+const DELTA = v => v == null ? '' : v > 0 ? `<span class="up">▲ ${NUM(v)}</span>` : v < 0 ? `<span class="down">▼ ${NUM(-v)}</span>` : '';
+const HA = ts => { if(!ts) return 'nunca atualizado'; const m = Math.round((Date.now()/1000-ts)/60);
+  return m < 60 ? `atualizado há ${m} min` : m < 1440 ? `atualizado há ${Math.round(m/60)} h` : `atualizado há ${Math.round(m/1440)} d`; };
+const PLAT = {youtube:{nome:'YouTube',cor:'var(--yt)',ico:'▶'}, tiktok:{nome:'TikTok',cor:'var(--tt)',ico:'♪'}, instagram:{nome:'Instagram',cor:'var(--ig)',ico:'◎'}};
+
+// ------------------------------------------------------------ isométrico
+const U = 30, C = Math.cos(Math.PI/6)*U, S = Math.sin(Math.PI/6)*U;
+const P = (x,y,z=0) => [(x-y)*C, (x+y)*S - z*U];
+const pts = a => a.map(p => P(...p).map(n=>n.toFixed(1)).join(',')).join(' ');
+const poly = (a, fill, extra='') => `<polygon points="${pts(a)}" fill="${fill}" ${extra}/>`;
+function caixa(x,y,z,w,d,h,c,extra=''){ // c = [topo, frente(+y), lado(+x)]
+  return poly([[x,y+d,z],[x+w,y+d,z],[x+w,y+d,z+h],[x,y+d,z+h]], c[1], extra)
+       + poly([[x+w,y,z],[x+w,y+d,z],[x+w,y+d,z+h],[x+w,y,z+h]], c[2], extra)
+       + poly([[x,y,z+h],[x+w,y,z+h],[x+w,y+d,z+h],[x,y+d,z+h]], c[0], extra);
+}
+const CORES = ['#ffc800','#25f4ee','#ff5d8f','#7c6cff','#2fe07a','#ff8a3d','#4dabff'];
+const FW = 16, FD = 11; // piso
+
+function piso(){
+  let s = '';
+  // paredes do fundo
+  s += poly([[0,0,0],[FW,0,0],[FW,0,4.2],[0,0,4.2]], '#111319');
+  s += poly([[0,0,0],[0,FD,0],[0,FD,4.2],[0,0,4.2]], '#0d0f14');
+  // piso + grade
+  s += poly([[0,0,0],[FW,0,0],[FW,FD,0],[0,FD,0]], '#171a21');
+  for(let x=1;x<FW;x++) s += `<polyline points="${pts([[x,0,0],[x,FD,0]])}" stroke="#ffffff07" fill="none"/>`;
+  for(let y=1;y<FD;y++) s += `<polyline points="${pts([[0,y,0],[FW,y,0]])}" stroke="#ffffff07" fill="none"/>`;
+  // neon nas bordas
+  s += `<polyline points="${pts([[0,FD,0],[FW,FD,0],[FW,0,0]])}" stroke="#ffc800" stroke-width="3" fill="none" filter="url(#glow)"/>`;
+  s += `<polyline points="${pts([[0,FD,4.2],[0,0,4.2],[FW,0,4.2]])}" stroke="#ffc80088" stroke-width="2" fill="none" filter="url(#glow)"/>`;
+  // faixa "área de descanso"
+  s += poly([[12.6,6.2,0.01],[15.6,6.2,0.01],[15.6,10.6,0.01],[12.6,10.6,0.01]], '#ffc80010', 'stroke="#ffc80044" stroke-dasharray="4 4"');
+  return s;
+}
+
+function telasParede(horas, receita){
+  // 4 telas na parede de trás mostrando cortes por hora (últimas 4 h com atividade)
+  const agora = new Date().getHours(); let s = '';
+  const max = Math.max(1, ...horas);
+  for(let i=0;i<4;i++){
+    const h = (agora - 3 + i + 24) % 24, v = horas[h] || 0, x0 = 1 + i*2.6;
+    s += poly([[x0,0,1.4],[x0+2.2,0,1.4],[x0+2.2,0,3.6],[x0,0,3.6]], '#0a0c10', 'stroke="#2a2e38"');
+    const alt = 1.6 * v / max;
+    for(let b=0;b<4;b++){ const bx = x0+0.3+b*0.45, ba = alt*(0.55+0.15*b);
+      s += poly([[bx,0,1.6],[bx+0.3,0,1.6],[bx+0.3,0,1.6+Math.max(.05,ba)],[bx,0,1.6+Math.max(.05,ba)]], i===3?'#ffc800':'#3a3f4c'); }
+    const [tx,ty] = P(x0+1.1,0,3.8);
+    s += `<text x="0" y="0" fill="#8a8d99" font-size="11" text-anchor="middle" transform="translate(${tx},${ty}) skewY(30)">${String(h).padStart(2,"0")}h · ${v}</text>`;
+  }
+  // telão de receita na parede lateral
+  s += poly([[0,2.5,1.2],[0,8.5,1.2],[0,8.5,3.7],[0,2.5,3.7]], '#0a0c10', 'stroke="#2fe07a55"');
+  const [rx,ry] = P(0,5.5,2.6);
+  s += `<text x="0" y="0" fill="#2fe07a" font-size="20" font-weight="800" text-anchor="middle" filter="url(#glow)" transform="translate(${rx},${ry}) skewY(-30)">${BRL(receita)}</text>`;
+  const [lx,ly] = P(0,5.5,3.3);
+  s += `<text x="0" y="0" fill="#8a8d99" font-size="10" text-anchor="middle" transform="translate(${lx},${ly}) skewY(-30)">RECEITA DO MÊS</text>`;
+  return s;
+}
+
+function mesa(a, x, y, cor){
+  const t = a.trabalhando, chefe = a.chefe;
+  const w = chefe ? 3 : 2.4, d = 1.2;
+  let s = `<g class="${t?'trab':''}">`;
+  // mesa
+  s += caixa(x, y, 0, w, d, 0.75, chefe ? ['#3a3220','#2a2416','#211c11'] : ['#2b2f3a','#1f222b','#181a21']);
+  // monitores (tela virada para +y, onde o agente senta)
+  const nMon = chefe ? 3 : 2;
+  for(let i=0;i<nMon;i++){
+    const mx = x + 0.25 + i * ((w-0.5)/nMon), mw = (w-0.5)/nMon - 0.1;
+    s += caixa(mx, y+0.2, 0.75, mw, 0.08, 0.7, ['#111','#05060a','#111']);
+    const tela = t ? cor : '#1c1f27';
+    s += `<g class="tela">` + poly([[mx+0.05,y+0.28,0.8],[mx+mw-0.05,y+0.28,0.8],[mx+mw-0.05,y+0.28,1.4],[mx+0.05,y+0.28,1.4]], tela, t?'opacity=".85"':'') + `</g>`;
+    if(t) for(let l=0;l<3;l++){ const ly = 0.95 + l*0.13;
+      s += `<polyline points="${pts([[mx+0.12,y+0.29,ly],[mx+0.12+mw*(0.3+0.2*((l+i)%3)),y+0.29,ly]])}" stroke="#000a" stroke-width="2"/>`; }
+  }
+  // cadeira + agente
+  const cx = x + w/2 - 0.3, cy = y + d + 0.35;
+  s += caixa(cx, cy+0.15, 0, 0.6, 0.6, 0.45, ['#22252e','#191b22','#14161b']);
+  s += `<g class="corpo">`;
+  s += caixa(cx+0.08, cy+0.2, 0.45, 0.44, 0.36, 0.55, [cor, shade(cor,-35), shade(cor,-55)]);
+  const [hx,hy] = P(cx+0.3, cy+0.38, 1.28);
+  s += `<circle cx="${hx}" cy="${hy}" r="8" fill="#f1c9a5"/><path d="M${hx-8},${hy-1} a8,8 0 0 1 16,0 z" fill="#2a1d14"/>`;
+  s += `</g>`;
+  if(!t && !chefe){ const [zx,zy] = P(cx+0.5, cy+0.3, 1.6);
+    s += `<text class="z" x="${zx}" y="${zy}" font-size="12">z</text><text class="z" x="${zx+6}" y="${zy-6}" font-size="10" style="animation-delay:.8s">z</text>`; }
+  s += `</g>`;
+  return s;
+}
+
+function cracha(a, x, y, cor){
+  const t = a.trabalhando, chefe = a.chefe, w = chefe ? 3 : 2.4, d = 1.2;
+  let s = '';
+  const [bx,by] = P(x + w/2, y + d/2, chefe ? 2.4 : 2.15);
+  const txt = `${a.nome}`, sub = a.linha, larg = Math.max(txt.length*7.6, sub.length*6.1) + 22;
+  s += `<g transform="translate(${bx},${by})">
+    <rect x="${-larg/2}" y="-15" width="${larg}" height="31" rx="8" fill="#0b0c10e8" stroke="${t?cor:'#2a2e38'}" ${t?'filter="url(#glowfraco)"':''}/>
+    <circle cx="${-larg/2+10}" cy="-4" r="3.5" fill="${a.alerta?'#ff4d5a':t?'#2fe07a':'#555a66'}" class="${a.alerta?'vivo':''}"/>
+    <text x="${-larg/2+18}" y="0" fill="#ecedf2" font-size="12" font-weight="700">${esc(txt)}</text>
+    <text x="${-larg/2+10}" y="12" fill="${t?cor:'#8a8d99'}" font-size="10">${esc(sub)}</text></g>`;
+  return s;
+}
+
+function sofa(){ // área de descanso
+  return caixa(13.2,9.3,0,2,0.8,0.45,['#2a2e38','#1f222b','#181a21']) + caixa(13.2,9.9,0.45,2,0.2,0.45,['#2a2e38','#1f222b','#181a21'])
+       + caixa(13.6,7.6,0,1,1,0.35,['#ffc80033','#ffc80022','#ffc80018'])
+       + (()=>{const [x,y]=P(14.1,6.6,0.02);return `<text x="${x}" y="${y}" fill="#ffc80099" font-size="10" text-anchor="middle">DESCANSO</text>`})();
+}
+
+function shade(hex, p){ const n = parseInt(hex.slice(1),16); let r=n>>16, g=(n>>8)&255, b=n&255;
+  const f = v => Math.max(0,Math.min(255, Math.round(v*(100+p)/100)));
+  return '#'+[f(r),f(g),f(b)].map(v=>v.toString(16).padStart(2,'0')).join(''); }
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+// posições das mesas (x, y) — chefe fica no canto da frente
+const VAGAS = [[1.6,2.2],[5.4,2.2],[9.2,2.2],[1.6,6.3],[5.4,6.3],[9.2,6.3],[13,2.2]];
+const VAGA_CHEFE = [12.9, 3.0];
+
+function desenhar(dados){
+  const ag = dados.agentes, normais = ag.filter(a=>!a.chefe), chefe = ag.find(a=>a.chefe);
+  const itens = normais.map((a,i)=>({a, x:VAGAS[i%VAGAS.length][0], y:VAGAS[i%VAGAS.length][1], cor:CORES[i%CORES.length]}));
+  if(chefe) itens.push({a:chefe, x:VAGA_CHEFE[0], y:VAGA_CHEFE[1], cor:'#ffc800'});
+  itens.sort((p,q)=>(p.x+p.y)-(q.x+q.y));       // pinta de trás para frente
+  const receita = dados.plataformas.reduce((t,p)=>t+(p.receita_mes||0),0);
+  document.getElementById('svg').innerHTML = `<defs>
+      <filter id="glow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="3" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+      <filter id="glowfraco" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="1.5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+    </defs>` + piso() + telasParede(dados.cortes_por_hora, receita) + sofa() + itens.map(i=>mesa(i.a,i.x,i.y,i.cor)).join('')
+    + itens.map(i=>cracha(i.a,i.x,i.y,i.cor)).join('');    // crachás sempre por cima
+  const trab = ag.filter(a=>a.trabalhando).length;
+  document.getElementById('emOperacao').textContent = `${trab} em operação · ${ag.length-trab} em descanso`;
+}
+
+// ------------------------------------------------------------ números
+function preencher(d){
+  document.getElementById('nomeCanal').textContent = d.nome_canal;
+  const ps = d.plataformas, soma = k => ps.reduce((t,p)=>t+(p[k]||0),0);
+  const somaD = k => ps.some(p=>p[k]!=null) ? soma(k) : null;
+  document.getElementById('kReceita').textContent = BRL(soma('receita_mes'));
+  document.getElementById('kSeg').textContent = NUM(soma('seguidores'));
+  document.getElementById('kSegD').innerHTML = somaD('delta_seguidores')!=null ? 'últimas 24h '+DELTA(somaD('delta_seguidores')) : 'sem histórico ainda';
+  document.getElementById('kViews').textContent = NUM(soma('views'));
+  document.getElementById('kViewsD').innerHTML = somaD('delta_views')!=null ? 'últimas 24h '+DELTA(somaD('delta_views')) : 'sem histórico ainda';
+  document.getElementById('kCortes').textContent = d.hoje.gerados;
+  document.getElementById('kCortesS').textContent = `${d.hoje.aprovados} aprovados · ${d.hoje.descartados} descartados pela IA`;
+  document.getElementById('plats').innerHTML = ps.map(p => { const m = PLAT[p.plataforma]; return `
+    <div class="plat" style="--cor:${m.cor}">
+      <h3><span style="color:${m.cor}">${m.ico}</span>${m.nome}${p.automatico?'<span class="tag">automático</span>':''}
+        <button onclick="editar('${p.plataforma}')">✎ Atualizar</button></h3>
+      <div class="linha"><span>Seguidores</span><b>${NUM(p.seguidores)}${DELTA(p.delta_seguidores)}</b></div>
+      <div class="linha"><span>Visualizações</span><b>${NUM(p.views)}${DELTA(p.delta_views)}</b></div>
+      <div class="linha"><span>Receita do mês</span><b style="color:var(--ok)">${BRL(p.receita_mes)}</b></div>
+      <div class="rodape">${HA(p.atualizado)}</div>
+    </div>`; }).join('');
+  window._dados = d;
+}
+
+async function carregar(){
+  try{ const d = await (await fetch('/api/escritorio')).json(); preencher(d); desenhar(d); }catch(e){ console.warn(e); }
+}
+
+function editar(pl){
+  const p = window._dados.plataformas.find(x=>x.plataforma===pl), f = document.getElementById('frm');
+  document.getElementById('dlgTit').textContent = 'Atualizar ' + PLAT[pl].nome;
+  f.plataforma.value = pl; f.seguidores.value = p.seguidores ?? ''; f.views.value = p.views ?? '';
+  f.receita_mes.value = p.receita_mes != null ? String(p.receita_mes).replace('.',',') : '';
+  document.getElementById('dlg').showModal();
+}
+document.getElementById('dlg').addEventListener('close', async e => {
+  if(e.target.returnValue !== 'ok') return;
+  const f = document.getElementById('frm');
+  // inteiros: "1.520" = 1520; dinheiro: "1.234,56" ou "120.50"
+  const inteiro = v => v.trim()==='' ? null : Number(v.replace(/[.,\s]/g,''));
+  const dinheiro = v => v.trim()==='' ? null : Number(v.includes(',') ? v.replace(/\./g,'').replace(',','.') : v);
+  await fetch('/api/metricas', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({
+    plataforma: f.plataforma.value, seguidores: inteiro(f.seguidores.value), views: inteiro(f.views.value), receita_mes: dinheiro(f.receita_mes.value)})});
+  carregar();
+});
+
+carregar(); setInterval(carregar, 10000);
+</script>
+</body></html>

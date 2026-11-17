@@ -66,6 +66,17 @@ Depois de mudar o config: `docker compose restart`.
 - cores em `config.yaml` → `marca` (legenda, palavra em destaque, fundo do gancho)
 - `marca.nome_canal` e `marca.hashtags`
 
+## Escritório (`/escritorio`)
+
+Painel com cada parte do sistema como um "funcionário" trabalhando ou descansando em tempo real
+(gravadores, chat, detector, roteirista IA, editor e você), mais seguidores, views e receita
+de cada plataforma.
+
+- **YouTube automático:** no `.env`, preencha `YOUTUBE_API_KEY` (Google Cloud → ativar
+  "YouTube Data API v3" → criar chave) e `YOUTUBE_CHANNEL_ID` (começa com `UC...`).
+- **TikTok, Instagram e receita:** botão **✎ Atualizar** em cada plataforma (as APIs deles
+  exigem app aprovado; quando liberar, automatizamos).
+
 ## IA (opcional, mas melhora muito)
 
 No `.env`: `LLM_PROVIDER=gemini` + `GEMINI_API_KEY=...` (o Gemini tem camada grátis).

@@ -8,6 +8,8 @@ x-base: &base
     - path: .env
       required: false
   restart: unless-stopped
+  environment:
+    TZ: America/Sao_Paulo
   volumes:
     - ./data:/app/data
     - ./config.yaml:/app/config.yaml:ro

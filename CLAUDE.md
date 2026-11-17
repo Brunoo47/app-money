@@ -19,6 +19,7 @@ Próximos passos:
 2. Medir a facecam de cada streamer (`tools/frame.py`) e preencher `layout.facecam`.
 3. Ensaio: `docker compose up` durante uma live de GTA 5 RP por 2h.
 4. Fase 2: postagem automática (`publisher.py`), depois das auditorias de API.
+5. Escritório: puxar TikTok/Instagram automático quando as APIs forem aprovadas; status "postado".
 
 ## Arquitetura
 
@@ -31,6 +32,10 @@ pipeline.py   janela do pico → Whisper → llm.decidir → recorta → tira si
 render.py     extrair (cruza segmentos com concat), remover_silencio (silencedetect), compor (layout+frame+ASS)
 legenda.py    .ass com legenda palavra por palavra, gancho no topo (3s) e crédito
 panel/app.py  FastAPI + HTML único: revisar, aprovar, rejeitar, editar título/gancho → re-render
+panel/escritorio.html  /escritorio: cena isométrica (SVG gerado em JS) com cada parte do sistema como
+              "funcionário" + números por plataforma. Atualiza via /api/escritorio a cada 10s
+metricas.py   status dos agentes (lido do SQLite) + tabela metricas (fotos de seguidores/views/receita
+              por plataforma; YouTube automático via API key, TikTok/Instagram/receita manuais)
 main.py       python -m app.main live | painel | processar <id> [--forcar]
 tools/        backtest.py, baixar_vod.py, gerar_teste.py, frame.py
 ```
