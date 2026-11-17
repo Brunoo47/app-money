@@ -1,0 +1,31 @@
+x-base: &base
+  image: cortes-gta6:latest
+  build:
+    context: .
+    args:
+      GPU: "0"
+  env_file:
+    - path: .env
+      required: false
+  restart: unless-stopped
+  volumes:
+    - ./data:/app/data
+    - ./config.yaml:/app/config.yaml:ro
+    - ./brand:/app/brand:ro
+    - whisper-cache:/root/.cache/huggingface
+
+services:
+  # Grava as lives, lê o chat, detecta momentos e gera os cortes.
+  live:
+    <<: *base
+    command: live
+
+  # Painel de aprovação: http://localhost:8080 (ou http://IP-DO-PC:8080 no celular)
+  painel:
+    <<: *base
+    command: painel
+    ports:
+      - "8080:8080"
+
+volumes:
+  whisper-cache:

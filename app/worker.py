@@ -1,0 +1,55 @@
+"""Worker ao vivo: analisa a gravação conforme ela chega e processa os candidatos."""
+import logging
+import threading
+import time
+
+from . import db, detector, pipeline, recorder
+from .config import cfg
+
+log = logging.getLogger("worker")
+CICLO_S = 15
+
+
+def _analisar_streamer(sid: str):
+    d = cfg()["detector"]
+    with db.db() as con:
+        r = con.execute("SELECT max(inicio + duracao) fim FROM segmentos "
+                        "WHERE streamer=? AND origem='live'", (sid,)).fetchone()
+    if r["fim"] is None:
+        return
+    fim_disp = int(r["fim"])
+    limite = fim_disp - d["janela"]["depois_s"]       # precisa ter o "depois" do pico gravado
+    chave = f"analisado:{sid}"
+    ultimo = float(db.get_estado(chave, 0))
+    ultimo = max(ultimo, limite - 3600)               # não reprocessar o dia inteiro
+    if limite - ultimo < 20:
+        return
+    t0 = int(ultimo - d.get("janela_z_s", 600))       # contexto para o z-score
+    score, z = detector.analisar(sid, t0, fim_disp)
+    picos = detector.achar_picos(score, z, t0, lim_a=int(ultimo), lim_b=limite)
+    ids = detector.registrar_candidatos(sid, picos, "live")
+    if ids:
+        log.info("⚡ %s: %d momento(s) novo(s) → candidatos %s", sid, len(ids), ids)
+    db.set_estado(chave, limite)
+
+
+def loop(parar: threading.Event):
+    ultima_limpeza = 0.0
+    while not parar.is_set():
+        try:
+            for s in cfg()["streamers"]:
+                _analisar_streamer(s["id"])
+            # Mais novo primeiro: corte rápido vale mais que corte antigo.
+            with db.db() as con:
+                prox = con.execute(
+                    "SELECT id FROM candidatos WHERE status='novo' AND origem='live' "
+                    "ORDER BY pico DESC LIMIT 1").fetchone()
+            if prox:
+                pipeline.processar(prox["id"])
+                continue                               # já checa o próximo
+            if time.time() - ultima_limpeza > 3600:
+                recorder.limpar_antigos()
+                ultima_limpeza = time.time()
+        except Exception:
+            log.exception("erro no ciclo do worker")
+        parar.wait(CICLO_S)

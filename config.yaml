@@ -1,0 +1,62 @@
+# Configuração do Cortes GTA 6.
+# Adicionar streamer = copiar um bloco de "streamers" e ajustar.
+
+streamers:
+  - id: davyjones
+    nome: Davy Jones
+    # Ordem = prioridade. O gravador usa a primeira plataforma que estiver ao vivo.
+    plataformas:
+      - { tipo: twitch, url: "https://twitch.tv/davyjones", canal_chat: davyjones }
+    chat_offset_s: -8          # o chat reage ~8s depois do que aparece na tela
+    layout:
+      # Retângulos no vídeo ORIGINAL (1920x1080). Ajustar olhando um frame real:
+      #   python -m tools.frame <video> 00:10:00  → salva um PNG para medir.
+      facecam: null            # ex.: { x: 1440, y: 0, w: 480, h: 270 }
+      gameplay: { x: 0, y: 0, w: 1920, h: 1080 }
+      zoom: 1.35               # sem facecam: quanto aproximar o gameplay no centro
+
+  - id: paulinholoko
+    nome: Paulinho o LOKO
+    plataformas:
+      - { tipo: twitch, url: "https://twitch.tv/paulinholokobr", canal_chat: paulinholokobr }
+      # - { tipo: youtube, url: "https://www.youtube.com/@PAULINHOOLOKO/live" }
+    chat_offset_s: -8
+    layout:
+      facecam: null
+      gameplay: { x: 0, y: 0, w: 1920, h: 1080 }
+      zoom: 1.35
+
+gravacao:
+  qualidade: "1080p60,1080p,best"
+  segmento_s: 120              # menor = corte sai mais rápido; maior = menos arquivos
+  retencao_h: 48               # apaga gravação bruta mais velha que isso
+
+detector:
+  pesos: { audio: 0.4, chat: 0.3, reacao: 0.3 }
+  limiar: 2.0                  # quanto maior, menos (e melhores) candidatos
+  separacao_min_s: 60
+  janela_z_s: 600              # base de comparação: últimos 10 min
+  suavizar_s: 3
+  janela: { antes_s: 20, depois_s: 15 }
+  reacoes: ["KKKK", "KEKW", "LUL", "OMEGALUL", "😂", "🤣", "💀", "PogChamp", "?????",
+            "CARALHO", "MDS", "NAO ACREDITO", "NÃO ACREDITO", "PQP", "VTNC", "AAAA"]
+
+corte:
+  duracao_min_s: 15
+  duracao_max_s: 40
+  remover_silencio: true
+  silencio_db: -38             # abaixo disso conta como silêncio
+  silencio_min_s: 0.7          # só corta pausas maiores que isso
+  nota_minima: 5               # IA deu nota menor → candidato fica como "descartado"
+
+marca:
+  nome_canal: "Cortes GTA 6"   # trocar pelo nome do canal
+  fonte_arquivo: brand/font.ttf
+  cor_principal: "#FFFFFF"     # cor da legenda
+  cor_destaque: "#FFD400"      # palavra sendo falada
+  cor_gancho_fundo: "#E01E37"  # caixa do texto de gancho no topo
+  frame: brand/frame.png       # overlay 1080x1920 transparente (opcional)
+  hashtags: ["#gta6", "#gta", "#cortes", "#shorts"]
+
+painel:
+  porta: 8080
