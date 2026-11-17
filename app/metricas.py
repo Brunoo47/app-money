@@ -142,24 +142,31 @@ def agentes() -> list[dict]:
             "id": f"grav-{s['id']}", "nome": s["nome"].split()[0], "papel": "Gravador",
             "trabalhando": ativo,
             "linha": f"AO VIVO · {_ha(agora - desde)}" if ativo else "offline",
-            "alerta": ativo,
+            "valor": f"AO VIVO {_ha(agora - desde)}" if ativo else "offline",
+            "tom": "alerta" if ativo else "neutro", "alerta": ativo,
         })
     lista += [
         {"id": "chat", "nome": "Chat", "papel": "Ouvinte do chat", "trabalhando": msgs_5min > 0,
-         "linha": f"{msgs_5min // 5} msgs/min" if msgs_5min else "silêncio"},
+         "linha": f"{msgs_5min // 5} msgs/min" if msgs_5min else "silêncio",
+         "valor": f"{msgs_5min // 5}/min", "tom": "ok" if msgs_5min else "neutro"},
         {"id": "detector", "nome": "Radar", "papel": "Detector", "trabalhando": alguem_ao_vivo,
-         "linha": f"{momentos_hoje} momentos hoje"},
+         "linha": f"{momentos_hoje} momentos hoje",
+         "valor": f"+{momentos_hoje}", "tom": "ok" if momentos_hoje else "neutro"},
         {"id": "ia", "nome": "Roteirista", "papel": "IA de títulos",
          "trabalhando": bool(processando) and llm_ligada,
-         "linha": f"{titulos_hoje} títulos hoje" if llm_ligada else "IA desligada"},
+         "linha": f"{titulos_hoje} títulos hoje" if llm_ligada else "IA desligada",
+         "valor": f"+{titulos_hoje}" if llm_ligada else "off", "tom": "ok" if llm_ligada else "neutro"},
         {"id": "editor", "nome": "Editor", "papel": "Render",
          "trabalhando": bool(processando),
          "linha": (f"editando #{processando['id']}" if processando else f"{prontos_hoje} cortes hoje")
-                  + (f" · fila {fila}" if fila > 1 else "")},
+                  + (f" · fila {fila}" if fila > 1 else ""),
+         "valor": f"#{processando['id']}" if processando else f"+{prontos_hoje}",
+         "tom": "ok" if (processando or prontos_hoje) else "neutro"},
         {"id": "voce", "nome": "Você", "papel": "Aprovação", "chefe": True,
          "trabalhando": esperando > 0,
          "linha": f"{esperando} esperando você" if esperando else f"{aprovados_hoje} aprovados hoje",
-         "alerta": esperando > 0},
+         "valor": f"{esperando} na fila" if esperando else f"+{aprovados_hoje}",
+         "tom": "alerta" if esperando else "ok", "alerta": esperando > 0},
     ]
     return lista
 
@@ -186,3 +193,20 @@ def hoje() -> dict:
             "aprovados": um("SELECT count(*) FROM candidatos WHERE criado_em >= ? AND status='aprovado'"),
             "descartados": um("SELECT count(*) FROM candidatos WHERE criado_em >= ? AND status='descartado'"),
         }
+
+
+def historico_seguidores(dias: int = 14) -> list[dict]:
+    """Total de seguidores (somando plataformas) no fim de cada dia, para o gráfico do telão."""
+    fim_hoje = _inicio_do_dia() + 86400
+    out = []
+    for i in range(dias - 1, -1, -1):
+        fim = fim_hoje - i * 86400
+        total, achou = 0, False
+        for p in PLATAFORMAS:
+            u = ultimo(p, antes_de=fim)
+            if u and u.get("seguidores") is not None:
+                total += u["seguidores"]
+                achou = True
+        if achou:
+            out.append({"dia": time.strftime("%d/%m", time.localtime(fim - 1)), "seguidores": total})
+    return out

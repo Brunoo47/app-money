@@ -240,6 +240,7 @@ def api_escritorio(bg: BackgroundTasks):
         "plataformas": metricas.resumo_plataformas(),
         "cortes_por_hora": metricas.cortes_por_hora(),
         "hoje": metricas.hoje(),
+        "historico": metricas.historico_seguidores(),
     }
 
 
