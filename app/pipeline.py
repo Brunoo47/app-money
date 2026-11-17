@@ -75,6 +75,7 @@ def _processar(c, tmp: Path, forcar: bool):
             sinais=json.loads(c["detalhe"] or "{}"),
             transcricao=texto_com_tempos(palavras_j),
             dmin=conf_c["duracao_min_s"], dmax=conf_c["duracao_max_s"],
+            chat=chat_da_janela(sid, ja, jb),
         )
 
     a, b = ja + decisao["inicio"], ja + decisao["fim"]
@@ -93,20 +94,21 @@ def _processar(c, tmp: Path, forcar: bool):
     editado = render.remover_silencio(bruto, tmp / "editado.mp4")
     dur = render.duracao(editado)
 
-    # 3) Legenda do trecho já editado (os tempos batem com o vídeo final)
+    # 3) Layout deste corte (acha a facecam) + legenda do trecho já editado
+    layout = render.resolver_layout(editado, s.get("layout", {}))
     palavras = transcrever(editado)
     fonte_arq = caminho_marca("fonte_arquivo")
     ass = legenda.gerar(
         tmp / "legenda.ass", palavras, dur, decisao.get("gancho") or "",
         credito=_url_credito(s), fonte=legenda.nome_fonte(fonte_arq),
         # Com facecam, o gancho vai na divisa cam/gameplay para não tapar o rosto.
-        margem_gancho=(render.CAM_H - 50) if s.get("layout", {}).get("facecam") else 170,
+        margem_gancho=(render.CAM_H - 50) if layout["modo"] == "cam" else 170,
     )
 
     # 4) Vertical final
     nome = f"{cid:05d}_{sid}_{slug(decisao['titulo'])}.mp4"
     saida = dirs()["candidatos"] / nome
-    render.compor(editado, ass, saida, s.get("layout", {}),
+    render.compor(editado, ass, saida, layout,
                   frame=caminho_marca("frame"),
                   fontes_dir=fonte_arq.parent if fonte_arq else None)
     escrever_txt(saida, decisao["titulo"], s)
@@ -116,6 +118,18 @@ def _processar(c, tmp: Path, forcar: bool):
         antigo.with_suffix(".txt").unlink(missing_ok=True)
     _atualizar(cid, arquivo=str(saida), status="pronto")
     log.info("✔ corte %s pronto: %s (%.0fs)", cid, saida.name, dur)
+
+
+def chat_da_janela(sid: str, ja: float, jb: float, maximo: int = 80) -> str:
+    """Mensagens do chat na janela, com tempo relativo ao vídeo (já com o atraso do chat)."""
+    off = streamer(sid).get("chat_offset_s", -8)
+    with db.db() as con:
+        rows = con.execute("SELECT ts, msg FROM chat WHERE streamer=? AND ts >= ? AND ts < ? "
+                           "ORDER BY ts", (sid, ja - off, jb - off)).fetchall()
+    if len(rows) > maximo:   # chat lotado: amostra espalhada pela janela inteira
+        passo = len(rows) / maximo
+        rows = [rows[int(i * passo)] for i in range(maximo)]
+    return "\n".join(f"{r['ts'] + off - ja:.0f}s: {(r['msg'] or '')[:100]}" for r in rows)
 
 
 def escrever_txt(video: Path, titulo: str, s: dict) -> Path:

@@ -55,7 +55,7 @@ ScaledBorderAndShadow: yes
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
 Style: Legenda,{fonte},92,{principal},{principal},{preto},&H80000000,-1,0,0,0,100,100,0,0,1,7,3,2,60,60,560,1
 Style: Gancho,{fonte},74,&H00FFFFFF,&H00FFFFFF,{fundo_gancho},{fundo_gancho},-1,0,0,0,100,100,0,0,3,18,0,8,80,80,{margem_gancho},1
-Style: Credito,{fonte},40,&H00FFFFFF,&H00FFFFFF,{preto},&H80000000,-1,0,0,0,100,100,0,0,1,3,1,2,40,40,90,1
+Style: Credito,{fonte},40,&H00FFFFFF,&H00FFFFFF,{preto},&H80000000,-1,0,0,0,100,100,0,0,1,3,1,2,40,40,430,1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text

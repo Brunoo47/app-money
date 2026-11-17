@@ -7,6 +7,23 @@ from pathlib import Path
 import yaml
 
 RAIZ = Path(__file__).resolve().parent.parent
+
+
+def _carregar_env(caminho: Path) -> None:
+    """Lê o .env quando roda direto no Python (no Docker quem faz isso é o env_file).
+    Variável que já existe no ambiente ganha do arquivo."""
+    if not caminho.exists():
+        return
+    for linha in caminho.read_text(encoding="utf-8").splitlines():
+        linha = linha.strip()
+        if not linha or linha.startswith("#") or "=" not in linha:
+            continue
+        chave, valor = linha.split("=", 1)
+        valor = valor.strip().strip('"').strip("'")
+        os.environ.setdefault(chave.strip(), valor)
+
+
+_carregar_env(RAIZ / ".env")
 DATA_DIR = Path(os.environ.get("DATA_DIR", RAIZ / "data")).resolve()
 
 logging.basicConfig(

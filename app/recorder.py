@@ -4,7 +4,9 @@ streamlink (pega a live) → ffmpeg (corta em segmentos .ts sem re-encodar).
 Cada segmento fechado entra no SQLite com o horário real (epoch) de início.
 """
 import csv
+import json
 import logging
+import re
 import shutil
 import subprocess
 import threading
@@ -17,6 +19,19 @@ from .config import cfg, dirs
 
 log = logging.getLogger("gravador")
 INTERVALO_CHECAGEM_S = 60
+RECHECAR_CATEGORIA_S = 120     # durante a gravação: o streamer trocou de jogo?
+RX_REPRISE = re.compile(r"\b(rerun|reprise|replay)\b", re.IGNORECASE)
+
+
+def _morrer_junto():
+    """Roda no processo filho (Linux/Docker): se o Python morrer de vez (kill -9, travou),
+    o kernel mata o streamlink/ffmpeg junto, em vez de deixá-los gravando sozinhos."""
+    try:
+        import ctypes
+        import signal
+        ctypes.CDLL("libc.so.6", use_errno=True).prctl(1, signal.SIGTERM)  # PR_SET_PDEATHSIG
+    except Exception:
+        pass
 
 
 class Gravador(threading.Thread):
@@ -24,6 +39,7 @@ class Gravador(threading.Thread):
         super().__init__(name=f"grav-{s['id']}", daemon=True)
         self.s, self.parar = s, parar
         self.sid = s["id"]
+        self._ultimo_aviso: str | None = None
 
     def run(self):
         log.info("vigiando %s", self.s["nome"])
@@ -39,8 +55,47 @@ class Gravador(threading.Thread):
             # Saiu do ar (ou offline): espera e tenta de novo.
             self.parar.wait(5 if gravou else INTERVALO_CHECAGEM_S)
 
+    def _info(self, plat: dict) -> dict | None:
+        """Metadados da live (título, categoria) ou None se estiver offline."""
+        try:
+            p = subprocess.run(["streamlink", "--json", plat["url"]], capture_output=True,
+                               text=True, timeout=60)
+            d = json.loads(p.stdout or "{}")
+        except (subprocess.TimeoutExpired, json.JSONDecodeError) as e:
+            log.warning("%s: não consegui checar a live (%s)", self.sid, e)
+            return None
+        if "streams" not in d:
+            return None
+        return d.get("metadata") or {}
+
+    def _motivo_pular(self, info: dict) -> str | None:
+        """Por que NÃO gravar essa live agora (reprise, jogo errado) ou None se pode gravar."""
+        g = cfg()["gravacao"]
+        titulo = info.get("title") or ""
+        categoria = info.get("category") or ""
+        if g.get("pular_reprise", True) and RX_REPRISE.search(titulo):
+            return f"reprise ({titulo[:50]})"
+        cats = [c.lower() for c in g.get("categorias") or []]
+        # Sem categoria (ex.: YouTube às vezes não informa) → não bloqueia.
+        if cats and categoria and not any(c in categoria.lower() for c in cats):
+            return f"categoria '{categoria}' não é das configuradas"
+        return None
+
+    def _avisar(self, msg: str | None):
+        """Loga só quando o motivo muda (senão vira spam a cada minuto)."""
+        if msg != self._ultimo_aviso and msg:
+            log.info("%s ao vivo, mas não vou gravar: %s", self.s["nome"], msg)
+        self._ultimo_aviso = msg
+
     def _gravar(self, plat: dict) -> bool:
         g = cfg()["gravacao"]
+        info = self._info(plat)
+        if info is None:
+            return False
+        motivo = self._motivo_pular(info)
+        self._avisar(motivo)
+        if motivo:
+            return False
         pasta = dirs()["raw"] / self.sid / datetime.now().strftime("%Y%m%d_%H%M%S")
         pasta.mkdir(parents=True, exist_ok=True)
         lista = pasta / "lista.csv"
@@ -56,12 +111,13 @@ class Gravador(threading.Thread):
 
         log_sl = open(pasta / "streamlink.log", "w", encoding="utf-8")
         log_ff = open(pasta / "ffmpeg.log", "w", encoding="utf-8")
-        p_sl = subprocess.Popen(sl, stdout=subprocess.PIPE, stderr=log_sl)
-        p_ff = subprocess.Popen(ff, stdin=p_sl.stdout, stderr=log_ff)
+        p_sl = subprocess.Popen(sl, stdout=subprocess.PIPE, stderr=log_sl, preexec_fn=_morrer_junto)
+        p_ff = subprocess.Popen(ff, stdin=p_sl.stdout, stderr=log_ff, preexec_fn=_morrer_junto)
         p_sl.stdout.close()
 
         inicio_epoch = None
         registrados = 0
+        ultima_checagem = time.time()
         while True:
             if inicio_epoch is None and (pasta / "00000.ts").exists():
                 inicio_epoch = time.time()
@@ -70,9 +126,17 @@ class Gravador(threading.Thread):
                 registrados = self._registrar(pasta, lista, inicio_epoch, registrados)
             if p_ff.poll() is not None or self.parar.is_set():
                 break
+            if time.time() - ultima_checagem > RECHECAR_CATEGORIA_S:
+                ultima_checagem = time.time()
+                info = self._info(plat)
+                motivo = self._motivo_pular(info) if info else None
+                if motivo:   # trocou de jogo / virou reprise: para e volta a vigiar
+                    self._avisar(motivo)
+                    p_sl.terminate()
+                    break
             time.sleep(2)
 
-        if self.parar.is_set():
+        if self.parar.is_set() and p_sl.poll() is None:
             p_sl.terminate()
         p_sl.wait(timeout=30)
         p_ff.wait(timeout=30)

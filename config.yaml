@@ -9,11 +9,13 @@ streamers:
       - { tipo: twitch, url: "https://twitch.tv/davyjones", canal_chat: davyjones }
     chat_offset_s: -8          # o chat reage ~8s depois do que aparece na tela
     layout:
-      # Retângulos no vídeo ORIGINAL (1920x1080). Ajustar olhando um frame real:
-      #   python -m tools.frame <video> 00:10:00  → salva um PNG para medir.
-      facecam: null            # ex.: { x: 1440, y: 0, w: 480, h: 270 }
+      # facecam: auto = acha a cam sozinho em cada corte (ela muda de lugar entre lives/jogos).
+      #   Se a cam do streamer nunca muda, dá para fixar (vídeo 1920x1080):
+      #   python -m tools.frame <video> 00:10:00 → mede no PNG → { x: 30, y: 28, w: 410, h: 228 }
+      #   null = nunca usar cam (só gameplay).
+      facecam: auto
       gameplay: { x: 0, y: 0, w: 1920, h: 1080 }
-      zoom: 1.35               # sem facecam: quanto aproximar o gameplay no centro
+      zoom: 1.78               # sem cam: 1.78 = gameplay quadrado no meio; menor = mostra mais da tela
 
   - id: paulinholoko
     nome: Paulinho o LOKO
@@ -22,19 +24,26 @@ streamers:
       # - { tipo: youtube, url: "https://www.youtube.com/@PAULINHOOLOKO/live" }
     chat_offset_s: -8
     layout:
-      facecam: null
+      facecam: auto
       gameplay: { x: 0, y: 0, w: 1920, h: 1080 }
-      zoom: 1.35
+      zoom: 1.78
 
 gravacao:
   qualidade: "1080p60,1080p,best"
   segmento_s: 120              # menor = corte sai mais rápido; maior = menos arquivos
   retencao_h: 48               # apaga gravação bruta mais velha que isso
+  # Só grava quando a categoria da live contém um destes (ex.: "Grand Theft Auto VI").
+  # Lista vazia = grava qualquer jogo. Se o streamer trocar de jogo, a gravação para.
+  categorias: ["Grand Theft Auto"]
+  pular_reprise: true          # não grava live com "RERUN"/"REPRISE" no título
 
 detector:
   pesos: { audio: 0.4, chat: 0.3, reacao: 0.3 }
   limiar: 2.0                  # quanto maior, menos (e melhores) candidatos
   separacao_min_s: 60
+  # Ao vivo, só barulho do jogo (tiro, explosão) não vira corte: o chat tem que reagir junto.
+  chat_min_z: 1.0              # pico precisa de chat ou reações pelo menos esse z acima do normal
+  aquecimento_s: 300           # espera 5 min de live gravada antes de achar picos (base do z-score)
   janela_z_s: 600              # base de comparação: últimos 10 min
   suavizar_s: 3
   janela: { antes_s: 20, depois_s: 15 }

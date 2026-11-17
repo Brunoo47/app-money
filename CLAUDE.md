@@ -15,17 +15,18 @@ pendências, atualize a seção "Status" daqui e o docs/CONTEXTO.md no mesmo com
 
 ## Status (17/11/2026)
 
-Implementado e testado com vídeo sintético + live simulada:
-gravador, chat Twitch/YouTube, detector, backtest, IA (opcional), render 9:16 com legenda,
-remoção de silêncio, painel, escritório (/escritorio). **Ainda não testado com live/VOD real nem com Whisper real**
-(o ambiente onde foi escrito não tinha acesso à Twitch nem ao HuggingFace).
+Implementado: gravador, chat Twitch/YouTube, detector, backtest, IA (opcional), render 9:16 com
+legenda, facecam automática, remoção de silêncio, painel, escritório (/escritorio).
+Testado em 17/11 no Linux do Bruno (venv, sem Docker) com **live real da Twitch**: gravação,
+chat IRC, Whisper `small` na CPU (legenda ok, ~1 min por corte), facecam auto em VODs do Davy e do
+Paulinho, IA Gemini real (descartou granada e trecho morto; aprovou momento bom com nota 9 e título).
+**Ainda não testado**: live de GTA de verdade, Docker no Windows, GPU.
 
 Próximos passos:
 1. Backtest com VOD real do Paulinho e calibrar `detector.limiar`/`pesos`.
-2. Medir a facecam de cada streamer (`tools/frame.py`) e preencher `layout.facecam`.
-3. Ensaio: `docker compose up` durante uma live de GTA 5 RP por 2h.
-4. Fase 2: postagem automática (`publisher.py`), depois das auditorias de API.
-5. Escritório: puxar TikTok/Instagram automático quando as APIs forem aprovadas; status "postado".
+2. Ensaio: `docker compose up` durante uma live de GTA 5 RP por 2h.
+3. Fase 2: postagem automática (`publisher.py`), depois das auditorias de API.
+4. Escritório: puxar TikTok/Instagram automático quando as APIs forem aprovadas; status "postado".
 
 ## Arquitetura
 
@@ -35,7 +36,9 @@ chat_live.py  IRC anônimo da Twitch / chat-downloader no YouTube → tabela cha
 worker.py     a cada 15s: detector nos trechos novos → candidatos → pipeline (mais novo primeiro)
 detector.py   score por segundo = z(áudio dB) + z(log msgs/s) + z(log reações) → picos
 pipeline.py   janela do pico → Whisper → llm.decidir → recorta → tira silêncio → Whisper de novo → legenda → render
-render.py     extrair (cruza segmentos com concat), remover_silencio (silencedetect), compor (layout+frame+ASS)
+render.py     extrair (cruza segmentos com concat), remover_silencio (silencedetect),
+              resolver_layout (cam | cheia | gameplay), compor (layout+frame+ASS)
+facecam.py    acha a cam em cada corte: rostos (Haar/OpenCV) em 8 quadros, fica com o rosto PARADO
 legenda.py    .ass com legenda palavra por palavra, gancho no topo (3s) e crédito
 panel/app.py  FastAPI + HTML único: revisar, aprovar, rejeitar, editar título/gancho → re-render
 panel/escritorio.html  /escritorio: cena isométrica (SVG gerado em JS) com cada parte do sistema como
@@ -61,6 +64,23 @@ Status do candidato: `novo → processando → pronto | descartado | erro`, e no
   (para a IA decidir) e no trecho final já sem silêncio (para os tempos da legenda baterem).
 - IA fora do ar ou sem chave nunca trava: `llm.decidir` cai no padrão.
 - Flag `--twitch-disable-ads` do streamlink foi removida (não existe mais na 8.x).
+- **Facecam automática** (`facecam: auto`): a cam do Paulinho muda de lugar conforme o jogo, então
+  retângulo fixo não serve. Rosto grande (>20% da altura) = câmera cheia → vertical no rosto.
+  Com duas cams (convidado) pode pegar a do convidado. OpenCV fixo em <5 (o 5.x tirou o Haar).
+- **Só grava GTA** (`gravacao.categorias`) e pula reprise (título com RERUN/REPRISE); re-checa a
+  categoria a cada 2 min e para se o streamer trocar de jogo. Motivo: no teste, uma reprise do
+  Gaules (chat parado) gerou corte de uma granada.
+- **Ao vivo o pico precisa do chat** (`detector.chat_min_z`): só áudio alto (tiro, explosão) não
+  vira corte. Sem chat nenhum, não sai corte. Backtest sem chat continua só com áudio.
+- **Aquecimento** (`detector.aquecimento_s`): sem picos nos primeiros 5 min de cada gravação.
+- A IA recebe o chat da janela junto com a transcrição, e o prompt diz o que é corte bom de GTA.
+- **Gemini**: chave no cabeçalho `x-goog-api-key` (chaves novas "AQ.…" não funcionam em `?key=`, e
+  na URL a chave vazava no log). `GEMINI_MODEL` é uma lista em ordem: a camada grátis vive com 503
+  ou lenta, então cada modelo tem 30s e cai para o próximo. `gemini-2.5-flash` não aceita conta nova.
+- Rodando sem Docker, `app/config.py` lê o `.env` (importar `app` já carrega).
+- **Parada limpa**: `main.live` espera os gravadores (join) fecharem streamlink/ffmpeg, e os filhos
+  usam PR_SET_PDEATHSIG (morrem se o Python morrer). Antes ficavam órfãos gravando para sempre
+  (no teste encheram 6 GB depois de o processo principal ter parado).
 
 ## Regras
 

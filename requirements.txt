@@ -10,3 +10,5 @@ streamlink>=7.0
 yt-dlp>=2025.1.1
 chat-downloader>=0.2.8
 faster-whisper>=1.1
+# acha a facecam sozinho (o 5.x tirou o detector de rosto clássico)
+opencv-python-headless>=4.9,<5

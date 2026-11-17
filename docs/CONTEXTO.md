@@ -9,7 +9,9 @@ o que o Bruno quer. Leia antes de propor mudanças grandes.
 - Dev (PHP, SQL, Docker, Next.js) na ULTRA LIMS. Sabe programação e arquitetura, mas
   **entende pouco de IA**: explique termos de IA/vídeo em português simples.
 - Conversa em português informal. Prefere respostas diretas e práticas.
-- Tem Claude Code Pro. Roda tudo no **PC de casa (Windows)**, não em servidor.
+- Tem Claude Code Pro. Roda tudo no **PC de casa (Windows)**, não em servidor. Também roda
+  direto no Linux (venv + ffmpeg do apt, sem Docker Desktop).
+- Preocupado com espaço em disco: gravação 1080p60 dá ~2,8 GB/h por streamer.
 
 ## O negócio
 
@@ -66,8 +68,16 @@ momentos plantados), render vertical + legenda ASS + layouts com/sem facecam, re
 gravador com live simulada (HTTP local), worker ao vivo cruzando segmentos, painel (aprovar,
 editar, re-render), escritório no Chrome (desktop e celular, clique e zoom).
 
-**Não testado ainda**: live real da Twitch, chat IRC real, Whisper real (legendas), IA real
-(Gemini/Anthropic), Docker build no Windows, GPU, TwitchDownloaderCLI.
+Testado em 17/11 no PC Linux do Bruno (venv, sem Docker): live real da Twitch (Gaules, canal
+japonês), chat IRC real, Whisper real (legenda palavra por palavra ok), facecam automática em
+VODs do Davy e do Paulinho. O Bruno achou o 1º corte real fraco (granada numa reprise, sem
+reação): daí vieram o filtro de categoria GTA, o pulo de reprise e a exigência de chat no pico.
+Ele quer cortes de **reação do streamer + chat**, principalmente **primeiras impressões do GTA 6**.
+
+IA Gemini testada em 17/11 (chave grátis do Bruno, no `.env`).
+
+**Não testado ainda**: live de GTA de verdade, Docker build no
+Windows, GPU, TwitchDownloaderCLI.
 
 ## Pendências do Bruno
 

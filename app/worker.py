@@ -10,6 +10,19 @@ log = logging.getLogger("worker")
 CICLO_S = 15
 
 
+def _inicio_sessao(sid: str) -> float:
+    """Início da gravação atual: volta pelos segmentos enquanto não houver buraco > 60s."""
+    with db.db() as con:
+        segs = con.execute("SELECT inicio, duracao FROM segmentos WHERE streamer=? "
+                           "AND origem='live' ORDER BY inicio DESC LIMIT 500", (sid,)).fetchall()
+    inicio = segs[0]["inicio"]
+    for ant in segs[1:]:
+        if inicio - (ant["inicio"] + ant["duracao"]) > 60:
+            break
+        inicio = ant["inicio"]
+    return inicio
+
+
 def _analisar_streamer(sid: str):
     d = cfg()["detector"]
     with db.db() as con:
@@ -24,9 +37,14 @@ def _analisar_streamer(sid: str):
     ultimo = max(ultimo, limite - 3600)               # não reprocessar o dia inteiro
     if limite - ultimo < 20:
         return
+    # Aquecimento: no começo da live ainda não há base para saber o que é "normal".
+    lim_a = max(ultimo, _inicio_sessao(sid) + d.get("aquecimento_s", 300))
+    if limite <= lim_a:
+        return
     t0 = int(ultimo - d.get("janela_z_s", 600))       # contexto para o z-score
     score, z = detector.analisar(sid, t0, fim_disp)
-    picos = detector.achar_picos(score, z, t0, lim_a=int(ultimo), lim_b=limite)
+    picos = detector.achar_picos(score, z, t0, lim_a=int(lim_a), lim_b=limite,
+                                 chat_min_z=d.get("chat_min_z"))
     ids = detector.registrar_candidatos(sid, picos, "live")
     if ids:
         log.info("⚡ %s: %d momento(s) novo(s) → candidatos %s", sid, len(ids), ids)

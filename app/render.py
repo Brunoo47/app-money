@@ -93,23 +93,52 @@ def rodar_stderr(cmd: list) -> str:
     return p.stderr
 
 
+def resolver_layout(entrada: Path, layout: dict) -> dict:
+    """Decide o layout deste corte. layout.facecam no config:
+      "auto"      acha a cam sozinho em cada corte (padrão; a cam muda de lugar entre lives)
+      {x,y,w,h}   retângulo fixo (quando a cam do streamer nunca muda)
+      null        só gameplay
+    Devolve o layout com "modo": cam | cheia | gameplay."""
+    cam = layout.get("facecam", "auto")
+    if isinstance(cam, dict):
+        return {**layout, "modo": "cam"}
+    if cam == "auto":
+        from . import facecam
+        try:
+            achado = facecam.detectar(entrada)
+        except Exception as e:  # detecção nunca pode derrubar o corte
+            log.warning("facecam automática falhou (%s), usando só gameplay", e)
+            achado = None
+        if achado and achado["tipo"] == "cam":
+            return {**layout, "facecam": achado["rect"], "modo": "cam"}
+        if achado and achado["tipo"] == "cheia":
+            return {**layout, "facecam": None, "cx": achado["cx"], "modo": "cheia"}
+    return {**layout, "facecam": None, "modo": "gameplay"}
+
+
 def _filtro_layout(layout: dict) -> str:
     g = layout.get("gameplay") or {"x": 0, "y": 0, "w": 1920, "h": 1080}
     crop_g = f"crop={g['w']}:{g['h']}:{g['x']}:{g['y']}"
+    if layout.get("modo") == "cheia":
+        # Câmera em tela cheia: fatia vertical 9:16 centrada no rosto.
+        fw = 1080 * W // H // 2 * 2
+        x = min(max(0, layout["cx"] - fw // 2), 1920 - fw)
+        return f"[0:v]scale=1920:1080,crop={fw}:1080:{x}:0,scale={W}:{H}[base]"
     cam = layout.get("facecam")
-    if cam:
+    if isinstance(cam, dict):
         crop_c = f"crop={cam['w']}:{cam['h']}:{cam['x']}:{cam['y']}"
         gp_h = H - CAM_H
         return (
-            f"[0:v]split=2[c][g];"
+            f"[0:v]scale=1920:1080,split=2[c][g];"
             f"[c]{crop_c},scale={W}:{CAM_H}:force_original_aspect_ratio=increase,crop={W}:{CAM_H}[cam];"
             f"[g]{crop_g},scale=-2:{gp_h},crop={W}:{gp_h}[gp];"
             f"[cam][gp]vstack[base]"
         )
-    zoom = float(layout.get("zoom", 1.35))
+    # Só gameplay: zoom 1.78 = faixa quadrada 1080x1080 no meio (o gameplay ocupa mais tela).
+    zoom = float(layout.get("zoom", 1.78))
     fg_w = int(round(W * zoom / 2) * 2)
     return (
-        f"[0:v]{crop_g},split=2[a][b];"
+        f"[0:v]scale=1920:1080,{crop_g},split=2[a][b];"
         f"[a]scale={W}:{H}:force_original_aspect_ratio=increase,crop={W}:{H},"
         f"boxblur=24:2,eq=brightness=-0.12[bg];"
         f"[b]scale={fg_w}:-2,crop={W}:ih[fg];"

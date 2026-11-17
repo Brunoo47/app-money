@@ -157,11 +157,19 @@ def analisar(sid: str, t0: int, t1: int) -> tuple[np.ndarray, dict[str, np.ndarr
 
 
 def achar_picos(score: np.ndarray, z: dict, t0: int, lim_a: int | None = None,
-                lim_b: int | None = None) -> list[Pico]:
+                lim_b: int | None = None, chat_min_z: float | None = None) -> list[Pico]:
     """Máximos acima do limiar, do maior para o menor, separados por separacao_min_s.
-    lim_a/lim_b: só aceita picos nesse intervalo (relógio absoluto)."""
+    lim_a/lim_b: só aceita picos nesse intervalo (relógio absoluto).
+    chat_min_z: exige que o chat (mensagens ou reações) tenha subido perto do pico.
+    Sem isso, um tiro ou uma granada (só áudio alto) vira corte. Sem chat nenhum
+    (reprise, chat fora do ar), nenhum pico passa."""
     d = cfg()["detector"]
     limiar, sep = d["limiar"], d["separacao_min_s"]
+    social = None
+    if chat_min_z is not None:
+        # ±5s: o offset do chat é uma média, a reação real espalha alguns segundos.
+        social = np.maximum(z["chat"], z["reacao"])
+        social = np.array([social[max(0, i - 5): i + 6].max() for i in range(len(social))])
     ordem = np.argsort(-score)
     escolhidos: list[int] = []
     for i in ordem:
@@ -171,6 +179,8 @@ def achar_picos(score: np.ndarray, z: dict, t0: int, lim_a: int | None = None,
         if lim_a is not None and t < lim_a:
             continue
         if lim_b is not None and t >= lim_b:
+            continue
+        if social is not None and social[i] < chat_min_z:
             continue
         if all(abs(int(i) - j) >= sep for j in escolhidos):
             escolhidos.append(int(i))

@@ -12,22 +12,38 @@ import httpx
 
 log = logging.getLogger("llm")
 
-PROMPT = """Você edita cortes virais de lives de GTA 6 para TikTok, Reels e Shorts (público brasileiro).
+PROMPT = """Você edita cortes virais de lives de GTA para TikTok, Reels e Shorts (público brasileiro).
 
 Streamer: {nome}
 Janela analisada: 0s até {dur:.0f}s. O pico de reação (grito, chat explodindo) está em ~{pico:.0f}s.
 Força do pico: áudio z={audio}, chat z={chat}, reações no chat z={reacao}.
 
-Transcrição com tempos:
+O que o streamer falou (com tempos):
 {transcricao}
 
-Regras:
+O que o chat mandou (tempos já alinhados com o vídeo):
+{mensagens_chat}
+
+O que vira corte BOM de GTA:
+- Primeiras impressões: o streamer reagindo ao jogo pela primeira vez (gráfico, mapa, detalhe absurdo,
+  "olha isso", "não acredito").
+- Situação engraçada ou caótica com reação forte: fuga, perseguição, acidente, bug, NPC fazendo algo
+  bizarro, plano que deu muito errado, troll, briga no RP.
+- Fala marcante / zoeira do streamer, interação engraçada com outro jogador.
+- O chat reagindo junto (KKKK, "?????", "MDS") confirma que o momento foi bom.
+
+O que NÃO é corte (nota baixa, "manter": false):
+- Só barulho do jogo (tiro, explosão, granada) sem o streamer reagir ou falar algo interessante.
+- Gameplay comum, menu, loading, streamer lendo doação/propaganda, conversa sem graça.
+- Momento que só faz sentido para quem estava assistindo a live inteira.
+
+Regras de edição:
 - O corte começa NO momento forte ou no máximo 2s antes. Nada de contexto lento no início.
 - Duração entre {dmin} e {dmax} segundos, dentro da janela.
 - Termine logo depois da reação/punchline (ou num cliffhanger).
 - "titulo": até 60 caracteres, PT-BR, caixa alta, cara de corte (ex.: "ELE NÃO ESPERAVA ISSO 😱").
 - "gancho": até 6 palavras para aparecer na tela nos 3 primeiros segundos, sem emoji.
-- "nota": 0 a 10, quão bom é para viralizar. Seja exigente: momento morto ou sem graça = nota baixa.
+- "nota": 0 a 10, quão bom é para viralizar. Seja exigente.
 - "manter": false se não tiver nada interessante.
 
 Responda SÓ com JSON:
@@ -41,18 +57,35 @@ def _extrair_json(texto: str) -> dict:
     return json.loads(m.group(0))
 
 
+MODELOS_GEMINI = "gemini-3.8-flash,gemini-3.1-flash-lite,gemini-3.5-flash"
+TIMEOUT_MODELO_S = 30
+
+
 def _gemini(prompt: str) -> str:
+    """Tenta os modelos de GEMINI_MODEL em ordem (separados por vírgula). A camada grátis
+    vive lotada (503) ou lenta: se um falhar ou demorar, vai para o próximo."""
     chave = os.environ["GEMINI_API_KEY"]
-    modelo = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash")
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/{modelo}:generateContent"
-    r = httpx.post(
-        url, params={"key": chave}, timeout=60,
-        json={"contents": [{"parts": [{"text": prompt}]}],
-              "generationConfig": {"temperature": 0.4,
-                                   "responseMimeType": "application/json"}},
-    )
-    r.raise_for_status()
-    return r.json()["candidates"][0]["content"]["parts"][0]["text"]
+    modelos = [m.strip() for m in (os.environ.get("GEMINI_MODEL") or MODELOS_GEMINI).split(",")
+               if m.strip()]
+    ultimo_erro: Exception | None = None
+    for modelo in modelos:
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{modelo}:generateContent"
+        try:
+            # Chave no cabeçalho, não na URL: na URL ela vaza em log de erro, e as chaves
+            # novas ("AQ.…") não são aceitas como ?key=.
+            r = httpx.post(
+                url, headers={"x-goog-api-key": chave}, timeout=TIMEOUT_MODELO_S,
+                json={"contents": [{"parts": [{"text": prompt}]}],
+                      "generationConfig": {"temperature": 0.4,
+                                           "responseMimeType": "application/json"}},
+            )
+            r.raise_for_status()
+            return r.json()["candidates"][0]["content"]["parts"][0]["text"]
+        except (httpx.HTTPError, KeyError, IndexError) as e:
+            status = getattr(getattr(e, "response", None), "status_code", type(e).__name__)
+            log.info("gemini %s falhou (%s), tentando o próximo", modelo, status)
+            ultimo_erro = e
+    raise RuntimeError(f"nenhum modelo Gemini respondeu ({ultimo_erro})")
 
 
 def _anthropic(prompt: str) -> str:
@@ -69,7 +102,7 @@ def _anthropic(prompt: str) -> str:
 
 
 def decidir(nome: str, dur: float, pico: float, sinais: dict, transcricao: str,
-            dmin: float, dmax: float) -> dict:
+            dmin: float, dmax: float, chat: str = "") -> dict:
     """Retorna {manter, inicio, fim, titulo, gancho, nota} com tempos relativos à janela."""
     padrao = {
         "manter": True,
@@ -85,6 +118,7 @@ def decidir(nome: str, dur: float, pico: float, sinais: dict, transcricao: str,
         return padrao
     prompt = PROMPT.format(
         nome=nome, dur=dur, pico=pico, transcricao=transcricao, dmin=dmin, dmax=dmax,
+        mensagens_chat=chat.strip() or "(sem chat)",
         **{k: sinais.get(k, "?") for k in ("audio", "chat", "reacao")},
     )
     try:

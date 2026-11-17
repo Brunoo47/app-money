@@ -55,7 +55,8 @@ Sem internet? `python -m tools.gerar_teste` cria um vídeo sintético com 3 "mom
 | Poucos cortes | diminuir `detector.limiar` (ex.: 1.6) |
 | Chat importa mais que grito | mexer em `detector.pesos` |
 | Duração | `corte.duracao_min_s` / `duracao_max_s` |
-| Facecam do streamer | `python -m tools.frame <video> 00:10:00` → abre `data/frame.png`, mede a cam na grade e preenche `layout.facecam` |
+| Facecam do streamer | automática (`layout.facecam: auto`). Se errar, fixe: `python -m tools.frame <video> 00:10:00` → mede no `data/frame.png` → `layout.facecam: {x, y, w, h}` |
+| Gravar outros jogos | `gravacao.categorias` (vazio = qualquer jogo) |
 
 Depois de mudar o config: `docker compose restart`.
 

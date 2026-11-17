@@ -21,11 +21,17 @@ def live():
     signal.signal(signal.SIGTERM, lambda *_: parar.set())
     signal.signal(signal.SIGINT, lambda *_: parar.set())
     chat_live.iniciar(parar)
-    for s in cfg()["streamers"]:
-        Gravador(s, parar).start()
+    gravadores = [Gravador(s, parar) for s in cfg()["streamers"]]
+    for g in gravadores:
+        g.start()
     log.info("rodando ao vivo com %d streamer(s). Ctrl+C para parar.", len(cfg()["streamers"]))
     worker.loop(parar)
     log.info("parando...")
+    # Espera cada gravador fechar o streamlink/ffmpeg. Sem isso o Python sai antes,
+    # e os dois ficam órfãos gravando para sempre (aconteceu no teste: 6 GB).
+    for g in gravadores:
+        g.join(timeout=70)
+    log.info("parado.")
 
 
 def main():
