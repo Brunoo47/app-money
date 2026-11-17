@@ -1,6 +1,7 @@
 """Montagem do corte: recorta da gravação, tira silêncio e monta o vertical 9:16."""
 import logging
 import re
+import subprocess
 from pathlib import Path
 
 from . import db
@@ -48,6 +49,24 @@ def extrair(sid: str, a: float, b: float, saida: Path, so_audio: bool = False) -
                "-t", f"{dur:.3f}", *saida_args, saida]
     rodar(cmd)
     return saida
+
+
+def quadro_jpeg(sid: str, t: float, largura: int = 640) -> bytes | None:
+    """Um quadro da gravação no instante t (relógio absoluto), em JPEG pequeno, para a IA ver
+    a tela. Falha (sem segmento, ffmpeg) devolve None: quadro é ajuda, não pode travar o corte."""
+    segs = segmentos_cobrindo(sid, t, t + 0.1)
+    if not segs:
+        return None
+    s = segs[0]
+    cmd = ["ffmpeg", "-v", "error", "-ss", f"{max(0.0, t - s['inicio']):.3f}", "-i", s["caminho"],
+           "-frames:v", "1", "-vf", f"scale={largura}:-2", "-q:v", "5",
+           "-f", "image2", "-c:v", "mjpeg", "pipe:1"]
+    try:
+        r = subprocess.run(cmd, capture_output=True, timeout=30)
+    except (OSError, subprocess.TimeoutExpired) as e:
+        log.warning("quadro em %.0fs falhou: %s", t, e)
+        return None
+    return r.stdout if r.returncode == 0 and r.stdout else None
 
 
 def remover_silencio(entrada: Path, saida: Path) -> Path:

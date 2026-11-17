@@ -3,6 +3,7 @@
 LLM_PROVIDER no .env: gemini | anthropic | none
 Sem IA, usa a janela do detector e um título padrão.
 """
+import base64
 import json
 import logging
 import os
@@ -23,26 +24,37 @@ O que o streamer falou (com tempos):
 
 O que o chat mandou (tempos já alinhados com o vídeo):
 {mensagens_chat}
+{info_quadros}
+O GTA 6 acabou de lançar: ninguém viu o jogo direito ainda. O público quer VER as novidades
+pela reação do streamer.
 
-O que vira corte BOM de GTA:
-- Primeiras impressões: o streamer reagindo ao jogo pela primeira vez (gráfico, mapa, detalhe absurdo,
-  "olha isso", "não acredito").
-- Situação engraçada ou caótica com reação forte: fuga, perseguição, acidente, bug, NPC fazendo algo
-  bizarro, plano que deu muito errado, troll, briga no RP.
-- Fala marcante / zoeira do streamer, interação engraçada com outro jogador.
-- O chat reagindo junto (KKKK, "?????", "MDS") confirma que o momento foi bom.
+O que vira corte BOM (em ordem de prioridade):
+1. Novidade/surpresa do GTA 6: o streamer descobrindo algo novo ou impressionante (gráfico, mapa,
+   cidade, física, água, carro, NPC realista, detalhe absurdo, mecânica nova) e reagindo
+   ("olha isso", "que isso", "não acredito", "mano do céu"). O corte precisa MOSTRAR a coisa.
+2. Situação engraçada ou caótica com reação forte: fuga, perseguição, acidente, bug, NPC fazendo algo
+   bizarro, plano que deu muito errado, troll, briga no RP.
+3. Fala marcante / zoeira do streamer, interação engraçada com outro jogador.
+O chat reagindo junto (KKKK, "?????", "QUE ISSO", "MDS") confirma que o momento foi bom.
 
 O que NÃO é corte (nota baixa, "manter": false):
 - Só barulho do jogo (tiro, explosão, granada) sem o streamer reagir ou falar algo interessante.
 - Gameplay comum, menu, loading, streamer lendo doação/propaganda, conversa sem graça.
+- Reação solta sem dar para entender do que ele está falando (nem pela fala nem pelo que veio antes).
 - Momento que só faz sentido para quem estava assistindo a live inteira.
 
-Regras de edição:
-- O corte começa NO momento forte ou no máximo 2s antes. Nada de contexto lento no início.
+Regras de edição (contexto + ritmo):
+- Quem assiste tem que entender O QUE o streamer está vendo. O corte começa quando a coisa
+  aparece ou quando ele começa a notar ("ué", "pera", "olha ali"), não só no grito. Use a fala
+  e o chat para achar esse começo; normalmente fica 5 a 20s antes do pico.
+- Mostre o contexto mas sem enrolação: comece já com algo acontecendo, nunca em silêncio ou papo
+  que não tem a ver.
 - Duração entre {dmin} e {dmax} segundos, dentro da janela.
 - Termine logo depois da reação/punchline (ou num cliffhanger).
-- "titulo": até 60 caracteres, PT-BR, caixa alta, cara de corte (ex.: "ELE NÃO ESPERAVA ISSO 😱").
-- "gancho": até 6 palavras para aparecer na tela nos 3 primeiros segundos, sem emoji.
+- "titulo": até 60 caracteres, PT-BR, caixa alta, diz O QUE aconteceu
+  (ex.: "A FÍSICA DA ÁGUA NO GTA 6 É SURREAL 😱", "NPC DO GTA 6 FEZ ISSO COM ELE 💀").
+- "gancho": até 6 palavras na tela nos 3 primeiros segundos, sem emoji. Ele dá o contexto para
+  quem chegou agora: diz o que é a novidade/situação (ex.: "OLHA A CHUVA DO GTA 6").
 - "nota": 0 a 10, quão bom é para viralizar. Seja exigente.
 - "manter": false se não tiver nada interessante.
 
@@ -61,12 +73,26 @@ MODELOS_GEMINI = "gemini-3.8-flash,gemini-3.1-flash-lite,gemini-3.5-flash"
 TIMEOUT_MODELO_S = 30
 
 
-def _gemini(prompt: str) -> str:
+Quadro = tuple[float, bytes]   # (segundo dentro da janela, JPEG)
+
+INFO_QUADROS = """
+Junto vão {n} quadros (imagens) da tela, nos tempos {tempos}. Use-os para ver O QUE está
+acontecendo: se é algo novo/impressionante do jogo, em que momento a coisa aparece na tela
+(para começar o corte ali) e se dá para entender o momento sem ter visto a live.
+"""
+
+
+def _gemini(prompt: str, quadros: list[Quadro] = ()) -> str:
     """Tenta os modelos de GEMINI_MODEL em ordem (separados por vírgula). A camada grátis
     vive lotada (503) ou lenta: se um falhar ou demorar, vai para o próximo."""
     chave = os.environ["GEMINI_API_KEY"]
     modelos = [m.strip() for m in (os.environ.get("GEMINI_MODEL") or MODELOS_GEMINI).split(",")
                if m.strip()]
+    partes: list[dict] = [{"text": prompt}]
+    for t, jpg in quadros:
+        partes += [{"text": f"Quadro em {t:.0f}s:"},
+                   {"inline_data": {"mime_type": "image/jpeg",
+                                    "data": base64.b64encode(jpg).decode()}}]
     ultimo_erro: Exception | None = None
     for modelo in modelos:
         url = f"https://generativelanguage.googleapis.com/v1beta/models/{modelo}:generateContent"
@@ -75,7 +101,7 @@ def _gemini(prompt: str) -> str:
             # novas ("AQ.…") não são aceitas como ?key=.
             r = httpx.post(
                 url, headers={"x-goog-api-key": chave}, timeout=TIMEOUT_MODELO_S,
-                json={"contents": [{"parts": [{"text": prompt}]}],
+                json={"contents": [{"parts": partes}],
                       "generationConfig": {"temperature": 0.4,
                                            "responseMimeType": "application/json"}},
             )
@@ -88,21 +114,26 @@ def _gemini(prompt: str) -> str:
     raise RuntimeError(f"nenhum modelo Gemini respondeu ({ultimo_erro})")
 
 
-def _anthropic(prompt: str) -> str:
+def _anthropic(prompt: str, quadros: list[Quadro] = ()) -> str:
+    conteudo: list[dict] = [{"type": "text", "text": prompt}]
+    for t, jpg in quadros:
+        conteudo += [{"type": "text", "text": f"Quadro em {t:.0f}s:"},
+                     {"type": "image", "source": {"type": "base64", "media_type": "image/jpeg",
+                                                  "data": base64.b64encode(jpg).decode()}}]
     r = httpx.post(
         "https://api.anthropic.com/v1/messages", timeout=60,
         headers={"x-api-key": os.environ["ANTHROPIC_API_KEY"],
                  "anthropic-version": "2023-06-01"},
         json={"model": os.environ.get("ANTHROPIC_MODEL", "claude-haiku-5-5"),
               "max_tokens": 400,
-              "messages": [{"role": "user", "content": prompt}]},
+              "messages": [{"role": "user", "content": conteudo}]},
     )
     r.raise_for_status()
     return r.json()["content"][0]["text"]
 
 
 def decidir(nome: str, dur: float, pico: float, sinais: dict, transcricao: str,
-            dmin: float, dmax: float, chat: str = "") -> dict:
+            dmin: float, dmax: float, chat: str = "", quadros: list[Quadro] = ()) -> dict:
     """Retorna {manter, inicio, fim, titulo, gancho, nota} com tempos relativos à janela."""
     padrao = {
         "manter": True,
@@ -119,10 +150,12 @@ def decidir(nome: str, dur: float, pico: float, sinais: dict, transcricao: str,
     prompt = PROMPT.format(
         nome=nome, dur=dur, pico=pico, transcricao=transcricao, dmin=dmin, dmax=dmax,
         mensagens_chat=chat.strip() or "(sem chat)",
+        info_quadros=INFO_QUADROS.format(
+            n=len(quadros), tempos=", ".join(f"{t:.0f}s" for t, _ in quadros)) if quadros else "",
         **{k: sinais.get(k, "?") for k in ("audio", "chat", "reacao")},
     )
     try:
-        bruto = _gemini(prompt) if prov == "gemini" else _anthropic(prompt)
+        bruto = _gemini(prompt, quadros) if prov == "gemini" else _anthropic(prompt, quadros)
         r = {**padrao, **_extrair_json(bruto)}
     except Exception as e:  # IA fora do ar não pode travar o pipeline
         log.warning("IA falhou (%s), usando padrão", e)

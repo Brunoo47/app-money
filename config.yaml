@@ -46,9 +46,10 @@ detector:
   aquecimento_s: 300           # espera 5 min de live gravada antes de achar picos (base do z-score)
   janela_z_s: 600              # base de comparação: últimos 10 min
   suavizar_s: 3
-  janela: { antes_s: 20, depois_s: 15 }
+  janela: { antes_s: 35, depois_s: 15 }   # 35s antes: a IA precisa ver o que causou a reação
   reacoes: ["KKKK", "KEKW", "LUL", "OMEGALUL", "😂", "🤣", "💀", "PogChamp", "?????",
-            "CARALHO", "MDS", "NAO ACREDITO", "NÃO ACREDITO", "PQP", "VTNC", "AAAA"]
+            "CARALHO", "MDS", "NAO ACREDITO", "NÃO ACREDITO", "PQP", "VTNC", "AAAA",
+            "QUE ISSO", "OLHA ISSO", "WTF", "INSANO", "SURREAL", "🤯", "😱", "😳"]
 
 corte:
   duracao_min_s: 15
@@ -57,6 +58,12 @@ corte:
   silencio_db: -38             # abaixo disso conta como silêncio
   silencio_min_s: 0.7          # só corta pausas maiores que isso
   nota_minima: 5               # IA deu nota menor → candidato fica como "descartado"
+
+ia:
+  # Quadros da tela que vão junto para a IA (ela vê o que está acontecendo, não só a fala).
+  # Cada quadro de 640px custa ~260 tokens no Gemini. 0 = não manda imagem.
+  quadros: 5
+  quadro_largura: 640
 
 marca:
   nome_canal: "Cortes GTA 6"   # trocar pelo nome do canal

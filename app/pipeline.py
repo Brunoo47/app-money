@@ -1,5 +1,6 @@
 """Candidato → corte pronto: transcreve a janela, IA escolhe o trecho, renderiza."""
 import json
+import os
 import logging
 import re
 import shutil
@@ -76,6 +77,7 @@ def _processar(c, tmp: Path, forcar: bool):
             transcricao=texto_com_tempos(palavras_j),
             dmin=conf_c["duracao_min_s"], dmax=conf_c["duracao_max_s"],
             chat=chat_da_janela(sid, ja, jb),
+            quadros=quadros_da_janela(sid, ja, jb, c["pico"]),
         )
 
     a, b = ja + decisao["inicio"], ja + decisao["fim"]
@@ -118,6 +120,25 @@ def _processar(c, tmp: Path, forcar: bool):
         antigo.with_suffix(".txt").unlink(missing_ok=True)
     _atualizar(cid, arquivo=str(saida), status="pronto")
     log.info("✔ corte %s pronto: %s (%.0fs)", cid, saida.name, dur)
+
+
+def quadros_da_janela(sid: str, ja: float, jb: float, pico: float) -> list:
+    """Quadros da tela para a IA ver o que está acontecendo. Mais densos antes do pico
+    (onde costuma estar a coisa que causou a reação). Tempos relativos à janela."""
+    conf = cfg().get("ia", {})
+    n, largura = int(conf.get("quadros", 5)), int(conf.get("quadro_largura", 640))
+    if n <= 0 or os.environ.get("LLM_PROVIDER", "none").lower() == "none":
+        return []
+    # Do começo da janela até um pouco depois do pico, com passo encolhendo perto do pico.
+    a, b = ja, min(jb, pico + 5)
+    tempos = [a + (b - a) * (1 - (1 - i / max(1, n - 1)) ** 1.5) for i in range(n)]
+    quadros = []
+    for t in tempos:
+        jpg = render.quadro_jpeg(sid, t, largura)
+        if jpg:
+            quadros.append((t - ja, jpg))
+    log.info("%d quadros para a IA (%.0f KB)", len(quadros), sum(len(q) for _, q in quadros) / 1024)
+    return quadros
 
 
 def chat_da_janela(sid: str, ja: float, jb: float, maximo: int = 80) -> str:

@@ -4,7 +4,7 @@ Dono: Bruno. Roda no PC de casa dele (Windows + Docker Desktop/WSL2).
 Objetivo: gravar lives de GTA 6 de outros streamers, achar os melhores momentos enquanto a
 live rola e gerar **cortes verticais de 15–40s, legendados, com a identidade do canal**, para
 o Bruno aprovar no painel e postar (YouTube Shorts, TikTok, Reels).
-O que importa: **velocidade** (corte sai com a live rolando) e **dopamina** (começa no pico, sem tempo morto).
+O que importa: **velocidade** (corte sai com a live rolando) e **dopamina com contexto** (mostra o que causou a reação, sem tempo morto).
 O README tem as instruções para o Bruno; este arquivo explica como o código funciona.
 
 Contexto de negócio, regras de conteúdo e histórico das decisões (leia também):
@@ -35,7 +35,7 @@ recorder.py   streamlink → ffmpeg segment (blocos .ts de 120s) → tabela segm
 chat_live.py  IRC anônimo da Twitch / chat-downloader no YouTube → tabela chat (epoch)
 worker.py     a cada 15s: detector nos trechos novos → candidatos → pipeline (mais novo primeiro)
 detector.py   score por segundo = z(áudio dB) + z(log msgs/s) + z(log reações) → picos
-pipeline.py   janela do pico → Whisper → llm.decidir → recorta → tira silêncio → Whisper de novo → legenda → render
+pipeline.py   janela do pico → Whisper + quadros da tela → llm.decidir → recorta → tira silêncio → Whisper de novo → legenda → render
 render.py     extrair (cruza segmentos com concat), remover_silencio (silencedetect),
               resolver_layout (cam | cheia | gameplay), compor (layout+frame+ASS)
 facecam.py    acha a cam em cada corte: rostos (Haar/OpenCV) em 8 quadros, fica com o rosto PARADO
@@ -74,6 +74,12 @@ Status do candidato: `novo → processando → pronto | descartado | erro`, e no
   vira corte. Sem chat nenhum, não sai corte. Backtest sem chat continua só com áudio.
 - **Aquecimento** (`detector.aquecimento_s`): sem picos nos primeiros 5 min de cada gravação.
 - A IA recebe o chat da janela junto com a transcrição, e o prompt diz o que é corte bom de GTA.
+- **Corte com contexto** (17/11): o Bruno achou o corte "começa no pico" genérico. Prioridade nº 1 do
+  prompt é novidade/surpresa do GTA 6, e o corte começa quando a coisa aparece (5–20s antes do pico),
+  não no grito. Gancho e título dizem O QUE é. Janela da IA: 35s antes do pico.
+- **IA vê a tela** (`ia.quadros`): 5 quadros JPEG 640px da janela (mais densos perto do pico) vão
+  junto com a transcrição. Sem isso ela só lia a fala e não sabia se o que aparecia era impressionante.
+  Quadro que falha é pulado; `LLM_PROVIDER=none` nem extrai.
 - **Gemini**: chave no cabeçalho `x-goog-api-key` (chaves novas "AQ.…" não funcionam em `?key=`, e
   na URL a chave vazava no log). `GEMINI_MODEL` é uma lista em ordem: a camada grátis vive com 503
   ou lenta, então cada modelo tem 30s e cai para o próximo. `gemini-2.5-flash` não aceita conta nova.

@@ -25,8 +25,9 @@ o que o Bruno quer. Leia antes de propor mudanças grandes.
 
 ## Regras de conteúdo (decididas com o Bruno)
 
-- **Dopamina**: corte de 15–40s, **começa no pico** (no máximo 1–2s antes), sem contexto lento,
-  sem tempo morto, legenda grande palavra por palavra, gancho na tela nos 3 primeiros segundos,
+- **Contexto** (mudou em 17/11): GTA 6 é jogo novo, o público quer VER a novidade. O corte começa quando
+  a coisa aparece ou o streamer começa a notar, não só no grito. O gancho diz o que é ("OLHA A ÁGUA DO GTA 6").
+- **Dopamina**: corte de 15–40s, sem enrolação nem tempo morto, legenda grande palavra por palavra, gancho na tela nos 3 primeiros segundos,
   termina logo depois da reação (ou num cliffhanger, para virar "parte 2").
 - O "momento bom" em GTA quase sempre é **grito do streamer + chat explodindo** (KKKK, KEKW...),
   por isso o detector prioriza áudio + chat, não só a fala.
@@ -74,7 +75,8 @@ VODs do Davy e do Paulinho. O Bruno achou o 1º corte real fraco (granada numa r
 reação): daí vieram o filtro de categoria GTA, o pulo de reprise e a exigência de chat no pico.
 Ele quer cortes de **reação do streamer + chat**, principalmente **primeiras impressões do GTA 6**.
 
-IA Gemini testada em 17/11 (chave grátis do Bruno, no `.env`).
+IA Gemini testada em 17/11 (chave grátis do Bruno, no `.env`). Desde 17/11 ela recebe também 5
+quadros da tela (~170 KB, ~1.300 tokens a mais por corte) para ver a novidade, não só ler a fala.
 
 **Não testado ainda**: live de GTA de verdade, Docker build no
 Windows, GPU, TwitchDownloaderCLI.
