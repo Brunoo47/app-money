@@ -23,8 +23,16 @@ def slug(txt: str, maximo: int = 40) -> str:
 
 
 def _url_credito(s: dict) -> str:
-    url = s["plataformas"][0]["url"]
+    # "credito" no config manda (ex.: live do YouTube, cujo link é um /watch?v= que muda toda live).
+    url = s.get("credito") or s["plataformas"][0]["url"]
     return re.sub(r"^https?://(www\.)?", "", url).rstrip("/")
+
+
+def _texto_faixa(decisao: dict) -> str:
+    """Texto da faixa vermelha: o gancho, ou o título (sem emoji/hashtag) se a IA não deu gancho."""
+    t = decisao.get("gancho") or decisao.get("titulo") or ""
+    t = re.sub(r"#\w+", "", t)
+    return "".join(ch for ch in t if ch.isalnum() or ch in " !?.,:'\"-%$" or ord(ch) < 0x2000).strip()
 
 
 def _atualizar(cid: int, **campos):
@@ -80,6 +88,17 @@ def _processar(c, tmp: Path, forcar: bool):
             quadros=quadros_da_janela(sid, ja, jb, c["pico"]),
         )
 
+    # IA fora do ar/lenta: corte com título genérico ("MOMENTO INSANO") não vinga.
+    # Volta para a fila e tenta de novo em alguns minutos; só usa o padrão depois de várias falhas.
+    max_t = cfg().get("ia", {}).get("tentativas", 3)
+    if decisao.get("ia_falhou") and not forcar and (c["tentativas"] or 0) + 1 < max_t:
+        espera = cfg().get("ia", {}).get("espera_s", 180)
+        _atualizar(cid, status="novo", tentativas=(c["tentativas"] or 0) + 1,
+                   tentar_em=db.agora() + espera)
+        log.info("candidato %s: IA falhou (tentativa %d de %d), tento de novo em %ds",
+                 cid, (c["tentativas"] or 0) + 1, max_t, espera)
+        return
+
     a, b = ja + decisao["inicio"], ja + decisao["fim"]
     nota = decisao.get("nota")
     _atualizar(cid, inicio=a, fim=b, titulo=decisao["titulo"], gancho=decisao["gancho"],
@@ -101,7 +120,7 @@ def _processar(c, tmp: Path, forcar: bool):
     palavras = transcrever(editado)
     fonte_arq = caminho_marca("fonte_arquivo")
     ass = legenda.gerar(
-        tmp / "legenda.ass", palavras, dur, decisao.get("gancho") or "",
+        tmp / "legenda.ass", palavras, dur, _texto_faixa(decisao),
         credito=_url_credito(s), fonte=legenda.nome_fonte(fonte_arq),
         # Com facecam, o gancho vai na divisa cam/gameplay para não tapar o rosto.
         margem_gancho=(render.CAM_H - 50) if layout["modo"] == "cam" else 170,

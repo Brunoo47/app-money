@@ -68,7 +68,7 @@ class Gravador(threading.Thread):
             return None
         return d.get("metadata") or {}
 
-    def _motivo_pular(self, info: dict) -> str | None:
+    def _motivo_pular(self, info: dict, plat: dict) -> str | None:
         """Por que NÃO gravar essa live agora (reprise, jogo errado) ou None se pode gravar."""
         g = cfg()["gravacao"]
         titulo = info.get("title") or ""
@@ -76,8 +76,12 @@ class Gravador(threading.Thread):
         if g.get("pular_reprise", True) and RX_REPRISE.search(titulo):
             return f"reprise ({titulo[:50]})"
         cats = [c.lower() for c in g.get("categorias") or []]
-        # Sem categoria (ex.: YouTube às vezes não informa) → não bloqueia.
-        if cats and categoria and not any(c in categoria.lower() for c in cats):
+        if cats and plat["tipo"] == "youtube":
+            # YouTube só manda categoria genérica ("Gaming"): o jogo fica no título.
+            if titulo and not any(c in titulo.lower() for c in cats):
+                return f"título sem jogo configurado ({titulo[:50]})"
+        # Sem categoria (às vezes não informa) → não bloqueia.
+        elif cats and categoria and not any(c in categoria.lower() for c in cats):
             return f"categoria '{categoria}' não é das configuradas"
         return None
 
@@ -92,7 +96,7 @@ class Gravador(threading.Thread):
         info = self._info(plat)
         if info is None:
             return False
-        motivo = self._motivo_pular(info)
+        motivo = self._motivo_pular(info, plat)
         self._avisar(motivo)
         if motivo:
             return False
@@ -129,7 +133,7 @@ class Gravador(threading.Thread):
             if time.time() - ultima_checagem > RECHECAR_CATEGORIA_S:
                 ultima_checagem = time.time()
                 info = self._info(plat)
-                motivo = self._motivo_pular(info) if info else None
+                motivo = self._motivo_pular(info, plat) if info else None
                 if motivo:   # trocou de jogo / virou reprise: para e volta a vigiar
                     self._avisar(motivo)
                     p_sl.terminate()

@@ -78,6 +78,32 @@ de cada plataforma.
 - **TikTok, Instagram e receita:** botão **✎ Atualizar** em cada plataforma (as APIs deles
   exigem app aprovado; quando liberar, automatizamos).
 
+## Postagem automática (YouTube e TikTok)
+
+Corte aprovado ganha o botão **🚀 Postar** (ou use **Aprovar e postar** direto). Ele entra numa fila,
+e o painel posta **1 por plataforma a cada 90 min** (`publicacao.intervalo_min`). O painel precisa ficar aberto (rodando).
+
+Você não passa senha nenhuma: cria um "app" de desenvolvedor em cada plataforma, cola as chaves dele
+no `.env` e clica em **Conectar** no painel. Aí você mesmo faz o login normal e autoriza.
+
+**YouTube**
+1. console.cloud.google.com → crie um projeto → ative a **YouTube Data API v3**.
+2. Tela de consentimento OAuth: tipo Externo, e adicione seu e-mail como usuário de teste.
+3. Credenciais → **ID do cliente OAuth** → tipo *Aplicativo da Web* → URI de redirecionamento:
+   `http://localhost:8080/oauth/youtube/volta`
+4. Copie o ID e a chave secreta para `YOUTUBE_CLIENT_ID` / `YOUTUBE_CLIENT_SECRET` no `.env`, reinicie o painel
+   e clique em **Conectar YouTube** (abra o painel em `localhost`, não pelo IP).
+
+**TikTok**
+1. developers.tiktok.com → crie um app → adicione **Login Kit** e **Content Posting API** (ligue o *Direct Post*).
+2. Redirect URI: o TikTok exige `https`. Cadastre um endereço seu (qualquer página) e coloque o mesmo em
+   `TIKTOK_REDIRECT_URI`. Depois de autorizar, o painel pede para você colar o link da página que abriu.
+3. `TIKTOK_CLIENT_KEY` / `TIKTOK_CLIENT_SECRET` no `.env` → reinicie o painel → **Conectar TikTok**.
+
+⚠️ **Enquanto as plataformas não auditarem o app, os vídeos saem PRIVADOS** (regra delas). Peça a auditoria
+(YouTube: formulário "YouTube API Services Audit"; TikTok: "Submit for review" no app). Quando aprovarem, troque
+no `config.yaml`: `youtube: { privacidade: public }` e `tiktok: { privacidade: PUBLIC_TO_EVERYONE }`.
+
 ## IA (opcional, mas melhora muito)
 
 No `.env`: `LLM_PROVIDER=gemini` + `GEMINI_API_KEY=...` (o Gemini tem camada grátis).

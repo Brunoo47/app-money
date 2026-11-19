@@ -1,17 +1,22 @@
 """Coleta o chat ao vivo e salva no SQLite.
 
 Twitch: IRC anônimo (não precisa de conta nem token).
-YouTube: lib chat-downloader na URL da live.
+YouTube: yt-dlp baixando o "live_chat" da live (vai escrevendo um JSON por linha) e a gente
+lê o arquivo enquanto cresce. A lib chat-downloader quebrou com o YouTube em 18/11/2026
+("Unable to parse initial video data").
 """
+import json
 import logging
 import random
+import shutil
 import socket
 import ssl
+import subprocess
 import threading
 import time
 
 from . import db
-from .config import cfg
+from .config import cfg, dirs
 
 log = logging.getLogger("chat")
 
@@ -87,24 +92,90 @@ class ChatTwitch(threading.Thread):
                             self.buf.add(self.canais[canal], agora, autor, msg)
 
 
+def _texto_yt(runs: list) -> str:
+    """Junta texto e emojis (vira o atalho, ex.: ":face-with-tears-of-joy:") de uma mensagem."""
+    partes = []
+    for r in runs:
+        if "text" in r:
+            partes.append(r["text"])
+        elif "emoji" in r:
+            atalhos = r["emoji"].get("shortcuts") or [""]
+            partes.append(atalhos[0])
+    return "".join(partes)
+
+
 class ChatYouTube(threading.Thread):
     def __init__(self, sid: str, url: str, buf: Buffer, parar: threading.Event):
         super().__init__(name=f"chat-yt-{sid}", daemon=True)
         self.sid, self.url, self.buf, self.parar = sid, url, buf, parar
 
     def run(self):
-        from chat_downloader import ChatDownloader
+        from .recorder import _morrer_junto
+        pasta = dirs()["tmp"] / "chat_yt"
+        pasta.mkdir(parents=True, exist_ok=True)
+        base = pasta / self.sid
         while not self.parar.is_set():
+            for f in pasta.glob(f"{self.sid}.*"):
+                f.unlink(missing_ok=True)
+            arq = pasta / f"{self.sid}.live_chat.json.part"
+            cmd = [shutil.which("yt-dlp") or "yt-dlp", "--skip-download", "--write-subs",
+                   "--sub-langs", "live_chat", "--no-part", "-o", str(base), self.url]
+            proc = None
             try:
-                for m in ChatDownloader().get_chat(self.url, timeout=None):
-                    if self.parar.is_set():
-                        return
-                    ts = m.get("timestamp")
-                    self.buf.add(self.sid, ts / 1e6 if ts else time.time(),
-                                 (m.get("author") or {}).get("name", ""), m.get("message", ""))
+                proc = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                                        preexec_fn=_morrer_junto)
+                n = self._ler(proc, arq, pasta / f"{self.sid}.live_chat.json")
+                log.info("chat YouTube %s terminou (%d msgs); tento de novo em 60s", self.sid, n)
             except Exception as e:
-                log.debug("youtube %s sem live/chat (%s)", self.sid, e)
+                log.warning("chat YouTube %s falhou (%s); tento de novo em 60s", self.sid, e)
+            finally:
+                if proc and proc.poll() is None:
+                    proc.terminate()
+                    try:
+                        proc.wait(10)
+                    except subprocess.TimeoutExpired:
+                        proc.kill()
             self.parar.wait(60)
+
+    def _ler(self, proc, *candidatos) -> int:
+        """Acompanha o arquivo que o yt-dlp vai escrevendo (como um tail -f)."""
+        n, fh, resto = 0, None, ""
+        try:
+            while not self.parar.is_set():
+                if fh is None:
+                    achado = next((c for c in candidatos if c.exists()), None)
+                    if achado:
+                        fh = open(achado, encoding="utf-8", errors="replace")
+                pedaco = fh.read() if fh else ""
+                if not pedaco:
+                    if proc.poll() is not None:
+                        return n
+                    self.parar.wait(1)
+                    continue
+                linhas = (resto + pedaco).split("\n")
+                resto = linhas.pop()  # última pode estar pela metade
+                for linha in linhas:
+                    n += self._linha(linha)
+        finally:
+            if fh:
+                fh.close()
+        return n
+
+    def _linha(self, linha: str) -> int:
+        try:
+            d = json.loads(linha)
+        except json.JSONDecodeError:
+            return 0
+        n = 0
+        for a in d.get("replayChatItemAction", {}).get("actions", []):
+            r = a.get("addChatItemAction", {}).get("item", {}).get("liveChatTextMessageRenderer")
+            if not r:
+                continue
+            ts = int(r.get("timestampUsec") or 0) / 1e6 or time.time()
+            autor = (r.get("authorName") or {}).get("simpleText", "")
+            self.buf.add(self.sid, ts, autor, _texto_yt((r.get("message") or {}).get("runs", [])))
+            n += 1
+        return n
 
 
 def iniciar(parar: threading.Event) -> Buffer:

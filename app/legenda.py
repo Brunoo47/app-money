@@ -86,8 +86,12 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
             ev.append(f"Dialogue: 0,{_t(a)},{_t(b)},Legenda,,0,0,0,,{pop}{' '.join(partes)}")
 
     if gancho:
-        ev.append(f"Dialogue: 1,{_t(0)},{_t(min(3.0, duracao))},Gancho,,0,0,0,,"
-                  f"{{\\fad(0,200)}}{_esc(gancho.upper())}")
+        # Faixa fixa o vídeo inteiro (como os canais de corte que bombam) ou só nos 3s iniciais.
+        if m.get("gancho_fixo", True):
+            ev.append(f"Dialogue: 1,{_t(0)},{_t(duracao)},Gancho,,0,0,0,,{_esc(gancho.upper())}")
+        else:
+            ev.append(f"Dialogue: 1,{_t(0)},{_t(min(3.0, duracao))},Gancho,,0,0,0,,"
+                      f"{{\\fad(0,200)}}{_esc(gancho.upper())}")
     if credito:
         ev.append(f"Dialogue: 1,{_t(0)},{_t(duracao)},Credito,,0,0,0,,{_esc(credito)}")
 

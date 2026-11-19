@@ -11,13 +11,15 @@ CICLO_S = 15
 
 
 def _inicio_sessao(sid: str) -> float:
-    """Início da gravação atual: volta pelos segmentos enquanto não houver buraco > 60s."""
+    """Início da gravação atual: volta pelos segmentos enquanto não houver buraco grande.
+    Reiniciar o app deixa um buraco de 1–2 min; isso não é live nova, então não refaz o aquecimento."""
+    buraco = cfg()["detector"].get("buraco_sessao_s", 300)
     with db.db() as con:
         segs = con.execute("SELECT inicio, duracao FROM segmentos WHERE streamer=? "
                            "AND origem='live' ORDER BY inicio DESC LIMIT 500", (sid,)).fetchall()
     inicio = segs[0]["inicio"]
     for ant in segs[1:]:
-        if inicio - (ant["inicio"] + ant["duracao"]) > 60:
+        if inicio - (ant["inicio"] + ant["duracao"]) > buraco:
             break
         inicio = ant["inicio"]
     return inicio
@@ -61,7 +63,8 @@ def loop(parar: threading.Event):
             with db.db() as con:
                 prox = con.execute(
                     "SELECT id FROM candidatos WHERE status='novo' AND origem='live' "
-                    "ORDER BY pico DESC LIMIT 1").fetchone()
+                    "AND (tentar_em IS NULL OR tentar_em <= ?) "
+                    "ORDER BY pico DESC LIMIT 1", (time.time(),)).fetchone()
             if prox:
                 pipeline.processar(prox["id"])
                 continue                               # já checa o próximo

@@ -19,6 +19,7 @@ o que o Bruno quer. Leia antes de propor mudanças grandes.
   os melhores momentos no YouTube Shorts, TikTok e Instagram Reels.
 - O GTA 6 lança em **19/11/2026** (PS5/Xbox; sem PC por enquanto). A meta é ser **um dos
   primeiros** canais postando cortes. Velocidade é a vantagem competitiva.
+- 18/11: **Alanzoka** (twitch.tv/alanzoka) entrou: no @grota_clips o corte dele deu 208 mil views.
 - Streamers do MVP: **Davy Jones** (twitch.tv/davyjones) e **Paulinho o LOKO**
   (twitch.tv/paulinholokobr, às vezes YouTube). **Lipão** entra depois (falta o @ dele).
 - Monetização: crescer seguidores/views e monetizar nas plataformas.
@@ -35,14 +36,17 @@ o que o Bruno quer. Leia antes de propor mudanças grandes.
   cada bloco. Nunca automatizar postagem sem a aprovação dele.
 - **Sempre dar crédito** ao streamer (selo no vídeo + link na descrição). O Bruno ficou de
   conferir se os streamers liberam canal de cortes. Repostar sem permissão gera strike.
-- Espaçar postagens: no máximo 1 corte por plataforma a cada 1–2h.
+- Espaçar postagens: o Bruno preferiu postar um atrás do outro (`intervalo_min: 0`, 18/11). Antes: 1 corte por plataforma a cada 30 min (era 1–2h; mudou em 18/11 vendo o @grota_clips,
+  que posta a cada 15–90 min e cresceu rápido).
 
-## Postagem (por que ainda é manual)
+## Postagem
 
 - YouTube Data API e TikTok Content Posting API: app **sem auditoria só posta em privado**.
 - Instagram Graph API exige conta **profissional (Empresa) ligada a uma página do Facebook**.
 - Plano: no lançamento o Bruno posta na mão (com título/descrição prontos do painel);
   pedir as auditorias na semana 1; depois criar `publisher.py`.
+- 18/11: o Bruno pediu o `publisher.py` com botão no painel. Feito: fila com 1 post por plataforma a
+  cada 90 min, login OAuth pelo painel (ele não passa senha). Sai privado até as auditorias.
 
 ## Ferramentas avaliadas (e por que não usamos sozinhas)
 

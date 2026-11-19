@@ -7,6 +7,7 @@ streamers:
     # Ordem = prioridade. O gravador usa a primeira plataforma que estiver ao vivo.
     plataformas:
       - { tipo: twitch, url: "https://twitch.tv/davyjones", canal_chat: davyjones }
+      - { tipo: youtube, url: "https://www.youtube.com/watch?v=x50ONQrBPRM" }   # live de lançamento (18/11)
     chat_offset_s: -8          # o chat reage ~8s depois do que aparece na tela
     layout:
       # facecam: auto = acha a cam sozinho em cada corte (ela muda de lugar entre lives/jogos).
@@ -16,17 +17,39 @@ streamers:
       facecam: auto
       gameplay: { x: 0, y: 0, w: 1920, h: 1080 }
       zoom: 1.78               # sem cam: 1.78 = gameplay quadrado no meio; menor = mostra mais da tela
-
-  - id: paulinholoko
-    nome: Paulinho o LOKO
+  - id: lipao
+    nome: Lipão
+    credito: "youtube.com/@LipaoGamer"   # selo no vídeo (a URL da live muda toda vez)
     plataformas:
-      - { tipo: twitch, url: "https://twitch.tv/paulinholokobr", canal_chat: paulinholokobr }
-      # - { tipo: youtube, url: "https://www.youtube.com/@PAULINHOOLOKO/live" }
+      - { tipo: youtube, url: "https://www.youtube.com/watch?v=lfqmnrTEu_4" }   # live de lançamento (18/11)
     chat_offset_s: -8
     layout:
       facecam: auto
       gameplay: { x: 0, y: 0, w: 1920, h: 1080 }
       zoom: 1.78
+
+  - id: alanzoka
+    nome: Alanzoka
+    plataformas:
+      - { tipo: twitch, url: "https://twitch.tv/alanzoka", canal_chat: alanzoka }
+    chat_offset_s: -8
+    layout:
+      facecam: auto
+      gameplay: { x: 0, y: 0, w: 1920, h: 1080 }
+      zoom: 1.78
+
+  # Paulinho desligado em 18/11 (Bruno: cortar só o Davy). Para religar, descomente o bloco.
+
+#   - id: paulinholoko
+#     nome: Paulinho o LOKO
+#     plataformas:
+#       - { tipo: twitch, url: "https://twitch.tv/paulinholokobr", canal_chat: paulinholokobr }
+#       # - { tipo: youtube, url: "https://www.youtube.com/@PAULINHOOLOKO/live" }
+#     chat_offset_s: -8
+#     layout:
+#       facecam: auto
+#       gameplay: { x: 0, y: 0, w: 1920, h: 1080 }
+#       zoom: 1.78
 
 gravacao:
   qualidade: "1080p60,1080p,best"
@@ -34,16 +57,17 @@ gravacao:
   retencao_h: 48               # apaga gravação bruta mais velha que isso
   # Só grava quando a categoria da live contém um destes (ex.: "Grand Theft Auto VI").
   # Lista vazia = grava qualquer jogo. Se o streamer trocar de jogo, a gravação para.
-  categorias: ["Grand Theft Auto"]
+  categorias: ["Grand Theft Auto", "GTA"]
   pular_reprise: true          # não grava live com "RERUN"/"REPRISE" no título
 
 detector:
   pesos: { audio: 0.4, chat: 0.3, reacao: 0.3 }
-  limiar: 2.0                  # quanto maior, menos (e melhores) candidatos
+  limiar: 1.2                  # quanto maior, menos (e melhores) candidatos. 2.0 não pegou nada na live de lançamento (chat sempre lotado), 18/11
   separacao_min_s: 60
   # Ao vivo, só barulho do jogo (tiro, explosão) não vira corte: o chat tem que reagir junto.
   chat_min_z: 1.0              # pico precisa de chat ou reações pelo menos esse z acima do normal
   aquecimento_s: 300           # espera 5 min de live gravada antes de achar picos (base do z-score)
+  buraco_sessao_s: 300         # buraco menor que isso (ex.: reiniciar o app) não conta como live nova
   janela_z_s: 600              # base de comparação: últimos 10 min
   suavizar_s: 3
   janela: { antes_s: 35, depois_s: 15 }   # 35s antes: a IA precisa ver o que causou a reação
@@ -64,6 +88,8 @@ ia:
   # Cada quadro de 640px custa ~260 tokens no Gemini. 0 = não manda imagem.
   quadros: 5
   quadro_largura: 640
+  tentativas: 3                # IA falhou → volta para a fila; na 3ª falha sai com título padrão
+  espera_s: 180                # espera entre as tentativas
 
 marca:
   nome_canal: "Cortes GTA 6"   # trocar pelo nome do canal
@@ -72,7 +98,19 @@ marca:
   cor_destaque: "#FFD400"      # palavra sendo falada
   cor_gancho_fundo: "#E01E37"  # caixa do texto de gancho no topo
   frame: brand/frame.png       # overlay 1080x1920 transparente (opcional)
-  hashtags: ["#gta6", "#gta", "#cortes", "#shorts"]
+  hashtags: ["#gta6", "#gtavi", "#shorts"]
+  gancho_fixo: true            # faixa vermelha com o gancho o vídeo inteiro (false = só 3s)
 
 painel:
   porta: 8080
+
+publicacao:
+  # Botão "Postar" no painel (só aparece em corte aprovado). Login: painel → "Conectar YouTube/TikTok".
+  plataformas: [youtube, tiktok]
+  intervalo_min: 0             # minutos entre posts por plataforma (0 = um atrás do outro)
+  # Sem auditoria das APIs o vídeo sai privado de qualquer jeito. Depois da auditoria:
+  #   youtube → public   |   tiktok → PUBLIC_TO_EVERYONE
+  youtube: { privacidade: public }     # public | unlisted | private
+  tiktok:
+    privacidade: PUBLIC_TO_EVERYONE   # sem a revisão do app o TikTok só aceita SELF_ONLY (o publisher cai nele sozinho)
+    hashtags: ["#foryou", "#gta6"]    # no TikTok troca as hashtags da marca por estas   # PUBLIC_TO_EVERYONE | MUTUAL_FOLLOW_FRIENDS | FOLLOWER_OF_CREATOR | SELF_ONLY

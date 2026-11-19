@@ -83,6 +83,12 @@ def db():
 def iniciar():
     with db() as con:
         con.executescript(SCHEMA)
+        # Colunas novas em banco que já existia.
+        cols = {r["name"] for r in con.execute("PRAGMA table_info(candidatos)")}
+        if "tentativas" not in cols:   # quantas vezes a IA falhou neste candidato
+            con.execute("ALTER TABLE candidatos ADD COLUMN tentativas INTEGER NOT NULL DEFAULT 0")
+        if "tentar_em" not in cols:    # epoch: só processar de novo a partir daqui
+            con.execute("ALTER TABLE candidatos ADD COLUMN tentar_em REAL")
 
 
 def get_estado(chave: str, padrao=None):

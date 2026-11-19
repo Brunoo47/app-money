@@ -25,14 +25,15 @@ Paulinho, IA Gemini real (descartou granada e trecho morto; aprovou momento bom 
 Próximos passos:
 1. Backtest com VOD real do Paulinho e calibrar `detector.limiar`/`pesos`.
 2. Ensaio: `docker compose up` durante uma live de GTA 5 RP por 2h.
-3. Fase 2: postagem automática (`publisher.py`), depois das auditorias de API.
+3. Postagem: `publisher.py` pronto (18/11), não testado com conta real. Falta o Bruno criar os apps
+   (Google Cloud + TikTok Developers), conectar no painel e pedir as auditorias (sem elas sai privado).
 4. Escritório: puxar TikTok/Instagram automático quando as APIs forem aprovadas; status "postado".
 
 ## Arquitetura
 
 ```
 recorder.py   streamlink → ffmpeg segment (blocos .ts de 120s) → tabela segmentos (horário epoch real)
-chat_live.py  IRC anônimo da Twitch / chat-downloader no YouTube → tabela chat (epoch)
+chat_live.py  IRC anônimo da Twitch / yt-dlp live_chat no YouTube → tabela chat (epoch)
 worker.py     a cada 15s: detector nos trechos novos → candidatos → pipeline (mais novo primeiro)
 detector.py   score por segundo = z(áudio dB) + z(log msgs/s) + z(log reações) → picos
 pipeline.py   janela do pico → Whisper + quadros da tela → llm.decidir → recorta → tira silêncio → Whisper de novo → legenda → render
@@ -43,6 +44,8 @@ legenda.py    .ass com legenda palavra por palavra, gancho no topo (3s) e crédi
 panel/app.py  FastAPI + HTML único: revisar, aprovar, rejeitar, editar título/gancho → re-render
 panel/escritorio.html  /escritorio: cena isométrica (SVG gerado em JS) com cada parte do sistema como
               "funcionário" + números por plataforma. Atualiza via /api/escritorio a cada 10s
+publisher.py  postagem YouTube/TikTok: OAuth (tokens na tabela estado), fila na tabela postagens,
+              "carteiro" (thread do painel) posta 1 por plataforma a cada `publicacao.intervalo_min`
 metricas.py   status dos agentes (lido do SQLite) + tabela metricas (fotos de seguidores/views/receita
               por plataforma; YouTube automático via API key, TikTok/Instagram/receita manuais)
 main.py       python -m app.main live | painel | processar <id> [--forcar]
@@ -73,6 +76,11 @@ Status do candidato: `novo → processando → pronto | descartado | erro`, e no
 - **Ao vivo o pico precisa do chat** (`detector.chat_min_z`): só áudio alto (tiro, explosão) não
   vira corte. Sem chat nenhum, não sai corte. Backtest sem chat continua só com áudio.
 - **Aquecimento** (`detector.aquecimento_s`): sem picos nos primeiros 5 min de cada gravação.
+  Buraco menor que `detector.buraco_sessao_s` (300s, ex.: reiniciar o app) não conta como live nova
+  e não refaz o aquecimento.
+- **YouTube** (18/11): chat via `yt-dlp --sub-langs live_chat` lido como tail (a lib chat-downloader
+  quebrou: "Unable to parse initial video data"). O filtro de jogo olha o **título**, porque o YouTube
+  só manda categoria "Gaming". Por isso `categorias` tem também "GTA".
 - A IA recebe o chat da janela junto com a transcrição, e o prompt diz o que é corte bom de GTA.
 - **Corte com contexto** (17/11): o Bruno achou o corte "começa no pico" genérico. Prioridade nº 1 do
   prompt é novidade/surpresa do GTA 6, e o corte começa quando a coisa aparece (5–20s antes do pico),
@@ -84,6 +92,15 @@ Status do candidato: `novo → processando → pronto | descartado | erro`, e no
   na URL a chave vazava no log). `GEMINI_MODEL` é uma lista em ordem: a camada grátis vive com 503
   ou lenta, então cada modelo tem 30s e cai para o próximo. `gemini-2.5-flash` não aceita conta nova.
 - Rodando sem Docker, `app/config.py` lê o `.env` (importar `app` já carrega).
+- **Postagem** (18/11): só corte `aprovado`, só pelo botão do painel (nunca automático sem o Bruno).
+  Upload direto pela API com httpx (sem SDK do Google). Envio interrompido vira `erro` e não repete
+  sozinho (evita vídeo duplicado). Depois de um erro a plataforma pausa 10 min. TikTok exige redirect
+  https: com `TIKTOK_REDIRECT_URI` o Bruno cola o link de volta no painel.
+- **Referência @grota_clips** (18/11, 138 mil seguidores no TikTok): título "STREAMER + O QUE + GTA 6",
+  faixa vermelha com o título o vídeo inteiro (`marca.gancho_fixo`), posta a cada 15–90 min, corta
+  vários streamers. Título genérico/"reação" fica em ~7 mil views; "o que aconteceu" passa de 180 mil.
+- **IA falhou → tenta de novo** (`ia.tentativas`/`ia.espera_s`): o candidato volta para `novo` com
+  `tentar_em` (+3 min). Só na 3ª falha sai com o título padrão "MOMENTO INSANO" (que não vinga).
 - **Parada limpa**: `main.live` espera os gravadores (join) fecharem streamlink/ffmpeg, e os filhos
   usam PR_SET_PDEATHSIG (morrem se o Python morrer). Antes ficavam órfãos gravando para sempre
   (no teste encheram 6 GB depois de o processo principal ter parado).

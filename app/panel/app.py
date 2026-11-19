@@ -3,6 +3,8 @@
 Lista os cortes prontos; você assiste, aprova (vai para clips/aprovados) ou rejeita,
 e pode editar título/gancho e mandar renderizar de novo.
 """
+import json
+import os
 import shutil
 import threading
 import time
@@ -13,12 +15,24 @@ from pydantic import BaseModel
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 from jinja2 import Environment
 
-from app import db, metricas, pipeline
+from app import db, metricas, pipeline, publisher
 from app.config import cfg, dirs, streamer
 
 app = FastAPI(title="Cortes GTA 6")
 db.iniciar()
+publisher.iniciar()
 _lock_render = threading.Lock()
+_parar = threading.Event()
+
+
+@app.on_event("startup")
+def _ligar_carteiro():
+    threading.Thread(target=publisher.carteiro, args=(_parar,), daemon=True, name="carteiro").start()
+
+
+@app.on_event("shutdown")
+def _desligar_carteiro():
+    _parar.set()
 
 FILTROS = {
     "pronto": ("Para revisar", "status='pronto'"),
@@ -50,11 +64,24 @@ PAGINA = Environment(autoescape=True).from_string("""<!doctype html>
  .aprovar{background:var(--ok);color:#fff} .rejeitar{background:#2a2c35;color:var(--txt)} .sec{background:#2a2c35;color:var(--txt)}
  .vazio{padding:40px;text-align:center;color:var(--mut);grid-column:1/-1}
  pre{white-space:pre-wrap;font-size:11px;color:#f99;margin:0}
+ .conex{font-size:12px;color:var(--mut);margin-top:6px} .conex a{color:var(--ac)} .conex b{color:var(--ok)}
+ .posts{font-size:12px;display:flex;flex-direction:column;gap:3px}
+ .posts .postado{color:var(--ok)} .posts .erro{color:#f99} .posts .fila,.posts .enviando{color:var(--ac)}
+ .posts a{color:inherit} .postar{background:#3b5bdb;color:#fff}
  #novos{display:none;position:fixed;bottom:16px;left:50%;transform:translateX(-50%);background:var(--ac);color:#000;padding:10px 18px;border-radius:99px;font-weight:700;cursor:pointer}
 </style></head><body>
 <header>
  <h1>✂️ {{ nome_canal }} <a href="/escritorio" style="float:right;font-size:13px;color:var(--ac);text-decoration:none">🏢 Escritório</a></h1>
  <div class="vivo">{% for s in status_streamers %}{% if s.vivo %}<b>● AO VIVO</b>{% else %}○{% endif %} {{ s.nome }} &nbsp; {% endfor %}</div>
+ <div class="conex">Postagem: {% for x in conexoes %}
+   {% if x.conectado %}<b>✔ {{x.nome}}</b> ({{x.conta}}) <a href="/oauth/{{x.plat}}/desconectar" onclick="return confirm('Desconectar {{x.nome}}?')">sair</a>
+   {% elif x.chaves %}<a href="/oauth/{{x.plat}}/conectar">Conectar {{x.nome}}</a>
+   {% else %}{{x.nome}}: falta a chave no .env{% endif %} &nbsp;
+ {% endfor %} · 1 post a cada {{ intervalo }} min por plataforma</div>
+ {% if colar_tiktok %}<form method="post" action="/oauth/tiktok/colar" class="conex">
+   Depois de autorizar no TikTok, cole aqui o link da página que abriu:
+   <input name="url" placeholder="https://...?code=..."><button class="sec" style="margin-top:4px">Concluir login do TikTok</button></form>{% endif %}
+ {% if msg %}<div class="conex" style="color:var(--ac)">{{ msg }}</div>{% endif %}
  <nav>{% for k, (rot, _) in filtros.items() %}<a href="/?f={{k}}" class="{{ 'on' if k==f }}">{{ rot }} ({{ contagem[k] }})</a>{% endfor %}</nav>
 </header>
 <main>
@@ -74,10 +101,22 @@ PAGINA = Environment(autoescape=True).from_string("""<!doctype html>
    <div class="bts">
    {% if c.status=='pronto' %}
      <form method="post" action="/c/{{c.id}}/aprovar" style="flex:1"><button class="aprovar" style="width:100%">✔ Aprovar</button></form>
+     {% if pode_postar %}<form method="post" action="/c/{{c.id}}/aprovar?postar=1" style="flex-basis:100%"><button class="postar" style="width:100%">🚀 Aprovar e postar</button></form>{% endif %}
      <form method="post" action="/c/{{c.id}}/rejeitar" style="flex:1"><button class="rejeitar" style="width:100%">✖ Rejeitar</button></form>
    {% elif c.status=='aprovado' %}
      <a class="bt aprovar" href="/video/{{c.id}}?download=1">⬇ Baixar</a>
      <button class="sec" onclick="copiar({{c.id}})">📋 Copiar texto</button>
+     {% set ps = posts.get(c.id, []) %}
+     {% if ps %}<div class="posts" style="flex-basis:100%">{% for p in ps %}
+       <span class="{{p.status}}">{{p.nome}}:
+       {% if p.status=='postado' %}✔ <a href="{{p.url}}" target="_blank">{{p.url}}</a>
+       {% elif p.status=='fila' %}na fila, sai ~{{p.previsto}}
+       {% elif p.status=='enviando' %}enviando...
+       {% else %}✖ {{ (p.erro or '')[:200] }}{% endif %}</span>{% endfor %}</div>{% endif %}
+     {% if pode_postar and (ps|selectattr('status','in',['fila','enviando','postado'])|list|length) < n_plats %}
+       <form method="post" action="/c/{{c.id}}/postar" style="flex-basis:100%"><button class="postar" style="width:100%">🚀 Postar{% if ps|selectattr('status','equalto','erro')|list %} (tentar de novo){% endif %}</button></form>{% endif %}
+     {% if ps|selectattr('status','equalto','fila')|list %}
+       <form method="post" action="/c/{{c.id}}/cancelar_post" style="flex-basis:100%"><button class="rejeitar" style="width:100%">Tirar da fila</button></form>{% endif %}
    {% elif c.status in ('rejeitado','descartado') %}
      <form method="post" action="/c/{{c.id}}/forcar" style="flex:1"><button class="sec" style="width:100%">Gerar mesmo assim</button></form>
    {% endif %}
@@ -126,7 +165,7 @@ def _render_bg(cid: int):
 
 
 @app.get("/", response_class=HTMLResponse)
-def index(f: str = "pronto"):
+def index(f: str = "pronto", msg: str = "", colar: int = 0):
     if f not in FILTROS:
         f = "pronto"
     with db.db() as con:
@@ -153,9 +192,17 @@ def index(f: str = "pronto"):
         c["texto"] = txt.read_text(encoding="utf-8") if txt and txt.exists() else ""
         cands.append(c)
     status_streamers = [{"nome": s["nome"], "vivo": s["id"] in vivos} for s in cfg()["streamers"]]
+    conexoes = publisher.conexoes()
     return PAGINA.render(cands=cands, f=f, filtros=FILTROS, contagem=contagem,
                          ultimo_id=ultimo, status_streamers=status_streamers,
-                         nome_canal=cfg()["marca"]["nome_canal"])
+                         nome_canal=cfg()["marca"]["nome_canal"],
+                         conexoes=conexoes, msg=msg,
+                         colar_tiktok=bool(colar) or (bool(os.environ.get("TIKTOK_REDIRECT_URI")) and any(
+                             x["plat"] == "tiktok" and x["chaves"] and not x["conectado"] for x in conexoes)),
+                         pode_postar=any(x["conectado"] for x in conexoes),
+                         n_plats=sum(1 for x in conexoes if x["conectado"]),
+                         posts=publisher.postagens_de([c["id"] for c in cands]),
+                         intervalo=cfg().get("publicacao", {}).get("intervalo_min", 90))
 
 
 @app.get("/video/{cid}")
@@ -168,15 +215,75 @@ def video(cid: int, download: int = 0):
 
 
 @app.post("/c/{cid}/aprovar")
-def aprovar(cid: int):
+def aprovar(cid: int, postar: int = 0):
     c = _get(cid)
+    if c["status"] != "pronto":
+        return RedirectResponse("/?f=aprovado", status_code=303)
     origem = Path(c["arquivo"])
     destino = dirs()["aprovados"] / origem.name
     shutil.copy2(origem, destino)
     if origem.with_suffix(".txt").exists():
         shutil.copy2(origem.with_suffix(".txt"), destino.with_suffix(".txt"))
     _set(cid, status="aprovado", arquivo=str(destino))
+    if postar:
+        publisher.enfileirar(cid, [x["plat"] for x in publisher.conexoes() if x["conectado"]])
     return RedirectResponse("/?f=pronto", status_code=303)
+
+
+@app.post("/c/{cid}/postar")
+def postar(cid: int):
+    if _get(cid)["status"] != "aprovado":
+        raise HTTPException(400, "só corte aprovado pode ser postado")
+    publisher.enfileirar(cid, [x["plat"] for x in publisher.conexoes() if x["conectado"]])
+    return RedirectResponse("/?f=aprovado", status_code=303)
+
+
+@app.post("/c/{cid}/cancelar_post")
+def cancelar_post(cid: int):
+    publisher.cancelar(cid)
+    return RedirectResponse("/?f=aprovado", status_code=303)
+
+
+# ------------------------------------------------------------------ login das plataformas
+def _volta(msg: str, **extra):
+    from urllib.parse import urlencode
+    return RedirectResponse("/?" + urlencode({"f": "aprovado", "msg": msg, **extra}), status_code=303)
+
+
+@app.get("/oauth/{plat}/conectar")
+def oauth_conectar(plat: str):
+    if plat not in publisher.PLATAFORMAS or not publisher.credenciais_ok(plat):
+        raise HTTPException(400, "plataforma sem chave no .env")
+    # Mesma aba. TikTok com redirect fora do painel: a página do site mostra o link
+    # e o Bruno volta e cola no campo do topo (sempre visível enquanto não conectar).
+    return RedirectResponse(publisher.url_login(plat), status_code=303)
+
+
+@app.get("/oauth/{plat}/volta")
+def oauth_volta(plat: str, code: str = "", state: str = "", error: str = ""):
+    if error or not code:
+        return _volta(f"Login do {plat} cancelado: {error or 'sem código'}")
+    try:
+        publisher.concluir_login(plat, code, state)
+    except Exception as e:
+        return _volta(f"Não deu: {e}")
+    return _volta(f"✔ {publisher.NOMES.get(plat, plat)} conectado!")
+
+
+@app.post("/oauth/tiktok/colar")
+def oauth_colar(url: str = Form("")):
+    try:
+        code, state = publisher.codigo_de_url(url)
+        publisher.concluir_login("tiktok", code, state)
+    except Exception as e:
+        return _volta(f"Não deu: {e}", colar=1)
+    return _volta("✔ TikTok conectado!")
+
+
+@app.get("/oauth/{plat}/desconectar")
+def oauth_desconectar(plat: str):
+    publisher.desconectar(plat)
+    return _volta(f"{publisher.NOMES.get(plat, plat)} desconectado.")
 
 
 @app.post("/c/{cid}/rejeitar")

@@ -51,15 +51,29 @@ Regras de edição (contexto + ritmo):
   que não tem a ver.
 - Duração entre {dmin} e {dmax} segundos, dentro da janela.
 - Termine logo depois da reação/punchline (ou num cliffhanger).
-- "titulo": até 60 caracteres, PT-BR, caixa alta, diz O QUE aconteceu
-  (ex.: "A FÍSICA DA ÁGUA NO GTA 6 É SURREAL 😱", "NPC DO GTA 6 FEZ ISSO COM ELE 💀").
-- "gancho": até 6 palavras na tela nos 3 primeiros segundos, sem emoji. Ele dá o contexto para
-  quem chegou agora: diz o que é a novidade/situação (ex.: "OLHA A CHUVA DO GTA 6").
+- "o_que_acontece": 1 frase com o FATO concreto do corte (o quê, com quem/o quê, onde), tirado
+  da fala, do chat e dos quadros. Ex.: "um caça do exército persegue o avião do Lipão sobre o mar".
+- "titulo": até 60 caracteres, PT-BR, caixa alta. Escreva a partir do "o_que_acontece":
+  NOME DO STREAMER + o fato específico + "NO GTA 6", ou "O/A [COISA] DO GTA 6 É [ADJETIVO]".
+  Tem que ter o detalhe que só existe NESTE corte (o bicho, o veículo, o lugar, o NPC, a mecânica).
+  Teste: se o título serviria para outro corte qualquer, está genérico, reescreva.
+  PROIBIDO: "MOMENTO", "INSANO", "ÉPICO/ÉPICA", "REAGE", "REAÇÃO", "INTERAGINDO", "SOFRENDO",
+  "COMEÇA", "JOGANDO", "PELA PRIMEIRA VEZ" (esses deram ~7 mil views; título com o fato deu 200 mil+).
+  RUIM → BOM:
+    "LIPÃO COMEÇA BRIGA ÉPICA NO GTA 6" → "LIPÃO APANHOU DE UMA VELHINHA NO GTA 6"
+    "DAVY JONES REAGE AO GRÁFICO" → "O REFLEXO DA ÁGUA DO GTA 6 ENGANOU O DAVY"
+    "MOMENTO INSANO DO LIPÃO 😱" → "LIPÃO SENDO INTERCEPTADO POR CAÇAS NO GTA 6"
+    "DAVY JONES INTERAGINDO COM PAPAGAIO" → "O PAPAGAIO DO GTA 6 RESPONDEU O DAVY 💀"
+  No máximo 1 emoji, no fim.
+- "gancho": até 7 palavras, sem emoji. Fica numa faixa na tela o vídeo INTEIRO: é o que faz a
+  pessoa parar de rolar. Mesmo fato do título, dito do jeito mais curto (ex.: "CAÇAS ATRÁS DO LIPÃO").
+- Atenção: a transcrição mistura a fala do streamer (português) com diálogo dos NPCs do jogo
+  (em inglês, às vezes traduzido errado). Use o diálogo só como contexto; a reação é do streamer.
 - "nota": 0 a 10, quão bom é para viralizar. Seja exigente.
 - "manter": false se não tiver nada interessante.
 
 Responda SÓ com JSON:
-{{"manter": true, "inicio": 0.0, "fim": 0.0, "titulo": "", "gancho": "", "nota": 0}}"""
+{{"o_que_acontece": "", "manter": true, "inicio": 0.0, "fim": 0.0, "titulo": "", "gancho": "", "nota": 0}}"""
 
 
 def _extrair_json(texto: str) -> dict:
@@ -159,7 +173,7 @@ def decidir(nome: str, dur: float, pico: float, sinais: dict, transcricao: str,
         r = {**padrao, **_extrair_json(bruto)}
     except Exception as e:  # IA fora do ar não pode travar o pipeline
         log.warning("IA falhou (%s), usando padrão", e)
-        return padrao
+        return {**padrao, "ia_falhou": True}
     # Garantir limites
     ini = min(max(0.0, float(r["inicio"])), max(0.0, dur - dmin))
     fim = min(dur, max(float(r["fim"]), ini + dmin))
